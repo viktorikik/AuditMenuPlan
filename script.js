@@ -1094,6 +1094,35 @@ const Renderer = (function() {
     modalOverlay.classList.remove('active');
   }
 
+  // --- Приватная функция добавления блюда на завтра (НОВАЯ) ---
+  function addDishToTomorrow(name, recipeId = null, closeModalCallback) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateStr = Utils.formatDateLocal(tomorrow);
+
+    let category = null;
+    let finalRecipeId = recipeId;
+
+    if (finalRecipeId !== null) {
+      const recipe = RecipeStore.getById(finalRecipeId);
+      if (recipe) {
+        category = recipe.category || Utils.guessCategory(name);
+      } else {
+        finalRecipeId = null;
+        category = Utils.guessCategory(name);
+      }
+    } else {
+      const existing = DishStore.getAll().find(d => d.name === name);
+      category = existing ? existing.category : Utils.guessCategory(name);
+      finalRecipeId = existing && existing.recipeId ? existing.recipeId : null;
+    }
+
+    DishStore.addDish(name, STATUSES.PLANNED, dateStr, category, false, '', finalRecipeId);
+    if (typeof closeModalCallback === 'function') closeModalCallback();
+    alert(`✅ Блюдо "${name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
+    renderCalendar(currentView, currentDate);
+  }
+
   // --- Рекомендации с выбором категории ---
   function showCategorySelection() {
     recTitle.textContent = '🍽️ Выберите категорию';
@@ -1211,16 +1240,7 @@ const Renderer = (function() {
           row.appendChild(daysSpan);
           row.addEventListener('click', function() {
             const name = this.dataset.name;
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const dateStr = Utils.formatDateLocal(tomorrow);
-            const existing = DishStore.getAll().find(d => d.name === name);
-            const category = existing ? existing.category : Utils.guessCategory(name);
-            const recipeId = existing ? existing.recipeId : null;
-            DishStore.addDish(name, STATUSES.PLANNED, dateStr, category, false, '', recipeId);
-            recOverlay.classList.remove('active');
-            alert(`✅ Блюдо "${name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
-            renderCalendar(currentView, currentDate);
+            addDishToTomorrow(name, null, () => recOverlay.classList.remove('active'));
           });
           section.appendChild(row);
         });
@@ -1246,16 +1266,7 @@ const Renderer = (function() {
           row.appendChild(daysSpan);
           row.addEventListener('click', function() {
             const name = this.dataset.name;
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const dateStr = Utils.formatDateLocal(tomorrow);
-            const existing = DishStore.getAll().find(d => d.name === name);
-            const category = existing ? existing.category : Utils.guessCategory(name);
-            const recipeId = existing ? existing.recipeId : null;
-            DishStore.addDish(name, STATUSES.PLANNED, dateStr, category, false, '', recipeId);
-            recOverlay.classList.remove('active');
-            alert(`✅ Блюдо "${name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
-            renderCalendar(currentView, currentDate);
+            addDishToTomorrow(name, null, () => recOverlay.classList.remove('active'));
           });
           section.appendChild(row);
         });
@@ -1328,16 +1339,7 @@ const Renderer = (function() {
         row.addEventListener('click', function(e) {
           if (e.target === removeBtn) return;
           const name = this.dataset.name;
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          const dateStr = Utils.formatDateLocal(tomorrow);
-          const existing = DishStore.getAll().find(d => d.name === name);
-          const category = existing ? existing.category : Utils.guessCategory(name);
-          const recipeId = existing ? existing.recipeId : null;
-          DishStore.addDish(name, STATUSES.PLANNED, dateStr, category, false, '', recipeId);
-          recOverlay.classList.remove('active');
-          alert(`✅ Блюдо "${name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
-          renderCalendar(currentView, currentDate);
+          addDishToTomorrow(name, null, () => recOverlay.classList.remove('active'));
         });
         removeBtn.addEventListener('click', function(e) {
           e.stopPropagation();
@@ -1471,14 +1473,7 @@ const Renderer = (function() {
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
     addButton.addEventListener('click', function() {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const dateStr = Utils.formatDateLocal(tomorrow);
-      const category = Utils.guessCategory(recipe.name);
-      DishStore.addDish(recipe.name, STATUSES.PLANNED, dateStr, category, false, '', recipe.id);
-      close();
-      alert(`✅ Блюдо "${recipe.name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
-      renderCalendar(currentView, currentDate);
+      addDishToTomorrow(recipe.name, recipe.id, close);
     });
   }
 
