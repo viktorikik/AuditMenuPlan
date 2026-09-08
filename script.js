@@ -59,6 +59,100 @@ const PRODUCT_WORDS = [
 ];
 
 // ============================================================
+// ГЛОБАЛЬНЫЙ ОБЪЕКТ КОНСТАНТ (ВЫНЕСЕНЫ ВСЕ СТРОКОВЫЕ ЗНАЧЕНИЯ)
+// ============================================================
+const CONSTANTS = {
+  STORAGE_KEYS: {
+    RECIPES: 'smartMenuRecipes_v1',
+    DISHES: 'smartMenuDishes_v5',
+    THEME: 'mealPlannerTheme'
+  },
+  EVENTS: {
+    DISHES_CHANGED: 'dishes:changed',
+    RECIPES_CHANGED: 'recipes:changed'
+  },
+  SELECTORS: {
+    monthTitle: 'monthTitle',
+    calendarContent: 'calendarContent',
+    menuContent: 'menuContent',
+    menuPeriod: 'menuPeriod',
+    modalOverlay: 'modalOverlay',
+    modalTitle: 'modalTitle',
+    modalContent: 'modalContent',
+    recOverlay: 'recOverlay',
+    recTitle: 'recTitle',
+    recContent: 'recContent',
+    themeToggle: 'themeToggle',
+    searchInput: 'searchInput',
+    statusFilter: 'statusFilter',
+    categoryFilter: 'categoryFilter',
+    viewToggle: 'viewToggle',
+    modalClose: 'modalClose',
+    recClose: 'recClose',
+    addModalOverlay: 'addModalOverlay',
+    addModalClose: 'addModalClose',
+    addModalCancel: 'addModalCancel',
+    newDishName: 'newDishName',
+    newDishNote: 'newDishNote',
+    newDishDate: 'newDishDate',
+    newDishStatus: 'newDishStatus',
+    newDishCategory: 'newDishCategory',
+    addModalSave: 'addModalSave',
+    exportModalOverlay: 'exportModalOverlay',
+    exportModalClose: 'exportModalClose',
+    choiceOverlay: 'choiceOverlay',
+    choiceClose: 'choiceClose',
+    choiceFromMenu: 'choiceFromMenu',
+    choiceFromTaste: 'choiceFromTaste',
+    choiceFromRecipes: 'choiceFromRecipes',
+    welcomeOverlay: 'welcomeOverlay',
+    welcomeStartBtn: 'welcomeStartBtn',
+    recipesOverlay: 'recipesOverlay',
+    recipesClose: 'recipesClose',
+    recipesList: 'recipesList',
+    addRecipeBtn: 'addRecipeBtn',
+    recipeFormOverlay: 'recipeFormOverlay',
+    recipeFormClose: 'recipeFormClose',
+    recipeFormTitle: 'recipeFormTitle',
+    recipeFormId: 'recipeFormId',
+    recipeName: 'recipeName',
+    recipeIngredients: 'recipeIngredients',
+    recipeInstructions: 'recipeInstructions',
+    recipeCategory: 'recipeCategory',
+    recipeFormCancel: 'recipeFormCancel',
+    recipeFormSave: 'recipeFormSave',
+    recipeParseBtn: 'recipeParseBtn',
+    shoppingListOverlay: 'shoppingListOverlay',
+    shoppingListClose: 'shoppingListClose',
+    shoppingDateFrom: 'shoppingDateFrom',
+    shoppingDateTo: 'shoppingDateTo',
+    generateShoppingListBtn: 'generateShoppingListBtn',
+    savedListsContainer: 'savedListsContainer',
+    savedListsList: 'savedListsList',
+    shoppingListDisplay: 'shoppingListDisplay',
+    shoppingListResult: 'shoppingListResult',
+    saveCurrentListBtn: 'saveCurrentListBtn',
+    deleteCurrentListBtn: 'deleteCurrentListBtn',
+    backToSavedListsBtn: 'backToSavedListsBtn',
+    exportShoppingListTxtBtn: 'exportShoppingListTxtBtn',
+    importFileInput: 'importFileInput',
+    importBtn: 'importBtn',
+    exportBtn: 'exportBtn',
+    suggestBtn: 'suggestBtn',
+    favoritesBtn: 'favoritesBtn',
+    recipesBtn: 'recipesBtn',
+    shoppingListBtn: 'shoppingListBtn',
+    addDishBtn: 'addDishBtn',
+    prevMonth: 'prevMonth',
+    nextMonth: 'nextMonth',
+    todayBtn: 'todayBtn',
+    calendarWrap: 'calendarWrap',
+    viewToggleButtons: '#viewToggle button',
+    exportOptions: '.export-option'
+  }
+};
+
+// ============================================================
 // 2. УТИЛИТЫ
 // ============================================================
 const Utils = {
@@ -193,7 +287,7 @@ const EventBus = {
 // 3. ХРАНИЛИЩЕ РЕЦЕПТОВ (с категорией)
 // ============================================================
 const RecipeStore = (function() {
-  const STORAGE_KEY = 'smartMenuRecipes_v1';
+  const STORAGE_KEY = CONSTANTS.STORAGE_KEYS.RECIPES;
   let recipes = [];
 
   function generateId() { return Date.now() + Math.random() * 10000; }
@@ -222,7 +316,7 @@ const RecipeStore = (function() {
       console.error('Ошибка сохранения рецептов:', e);
       showStorageError('рецепты');
     }
-    EventBus.emit('recipes:changed');
+    EventBus.emit(CONSTANTS.EVENTS.RECIPES_CHANGED);
   }
 
   function init() {
@@ -230,7 +324,7 @@ const RecipeStore = (function() {
       recipes = [];
       save();
     } else {
-      EventBus.emit('recipes:changed');
+      EventBus.emit(CONSTANTS.EVENTS.RECIPES_CHANGED);
     }
   }
 
@@ -275,7 +369,7 @@ const RecipeStore = (function() {
 // 4. ХРАНИЛИЩЕ ДАННЫХ (блюда)
 // ============================================================
 const DishStore = (function() {
-  const STORAGE_KEY = 'smartMenuDishes_v5';
+  const STORAGE_KEY = CONSTANTS.STORAGE_KEYS.DISHES;
   let dishes = [];
   let cacheUnique = null;
   let cacheRecs = null;
@@ -346,7 +440,7 @@ const DishStore = (function() {
       console.error('Ошибка сохранения данных:', e);
       showStorageError('блюда');
     }
-    EventBus.emit('dishes:changed');
+    EventBus.emit(CONSTANTS.EVENTS.DISHES_CHANGED);
   }
 
   function init() {
@@ -375,7 +469,7 @@ const DishStore = (function() {
       dishes = result;
       save(); // вызовет EventBus.emit('dishes:changed')
     } else {
-      EventBus.emit('dishes:changed');
+      EventBus.emit(CONSTANTS.EVENTS.DISHES_CHANGED);
     }
   }
 
@@ -521,16 +615,25 @@ const Renderer = (function() {
   let searchQuery = '', statusFilter = 'all', categoryFilter = 'all';
   let currentModalDate = null; // для автообновления открытой модалки дня
 
-  const monthTitle = document.getElementById('monthTitle');
-  const calendarContent = document.getElementById('calendarContent');
-  const menuContent = document.getElementById('menuContent');
-  const menuPeriod = document.getElementById('menuPeriod');
-  const modalOverlay = document.getElementById('modalOverlay');
-  const modalDate = document.getElementById('modalTitle');
-  const modalContent = document.getElementById('modalContent');
-  const recOverlay = document.getElementById('recOverlay');
-  const recTitle = document.getElementById('recTitle');
-  const recContent = document.getElementById('recContent');
+  // Получение элементов по селекторам из CONSTANTS
+  const els = {};
+  for (const key in CONSTANTS.SELECTORS) {
+    if (typeof CONSTANTS.SELECTORS[key] === 'string' && !CONSTANTS.SELECTORS[key].startsWith('#')) {
+      els[key] = document.getElementById(CONSTANTS.SELECTORS[key]);
+    }
+  }
+
+  // Для удобства присвоим основным переменным
+  const monthTitle = els.monthTitle;
+  const calendarContent = els.calendarContent;
+  const menuContent = els.menuContent;
+  const menuPeriod = els.menuPeriod;
+  const modalOverlay = els.modalOverlay;
+  const modalDate = els.modalTitle;
+  const modalContent = els.modalContent;
+  const recOverlay = els.recOverlay;
+  const recTitle = els.recTitle;
+  const recContent = els.recContent;
 
   // --- Вспомогательные функции ---
   function buildDishElement(dish, dateStr) {
@@ -898,7 +1001,7 @@ const Renderer = (function() {
   }
 
   function updateViewButtons() {
-    const btns = document.querySelectorAll('#viewToggle button');
+    const btns = document.querySelectorAll(CONSTANTS.SELECTORS.viewToggleButtons);
     btns.forEach(btn => {
       const isActive = btn.dataset.view === currentView;
       btn.classList.toggle('active', isActive);
@@ -1396,17 +1499,17 @@ const Renderer = (function() {
   function openAddModal() {
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() + 1);
-    document.getElementById('newDishDate').value = Utils.formatDateLocal(defaultDate);
-    document.getElementById('newDishName').value = '';
-    document.getElementById('newDishNote').value = '';
-    document.getElementById('newDishStatus').value = STATUSES.PLANNED;
-    document.getElementById('newDishCategory').value = CATEGORIES.MAIN;
-    document.getElementById('addModalOverlay').classList.add('active');
-    document.getElementById('addModalOverlay').focus();
+    document.getElementById(CONSTANTS.SELECTORS.newDishDate).value = Utils.formatDateLocal(defaultDate);
+    document.getElementById(CONSTANTS.SELECTORS.newDishName).value = '';
+    document.getElementById(CONSTANTS.SELECTORS.newDishNote).value = '';
+    document.getElementById(CONSTANTS.SELECTORS.newDishStatus).value = STATUSES.PLANNED;
+    document.getElementById(CONSTANTS.SELECTORS.newDishCategory).value = CATEGORIES.MAIN;
+    document.getElementById(CONSTANTS.SELECTORS.addModalOverlay).classList.add('active');
+    document.getElementById(CONSTANTS.SELECTORS.addModalOverlay).focus();
   }
 
   function closeAddModal() {
-    document.getElementById('addModalOverlay').classList.remove('active');
+    document.getElementById(CONSTANTS.SELECTORS.addModalOverlay).classList.remove('active');
   }
 
   function setSearchQuery(q) { searchQuery = q; renderMenu(); }
@@ -1505,7 +1608,7 @@ const Renderer = (function() {
 
   // --- Автоматическое обновление при изменении данных ---
   function initEventListeners() {
-    EventBus.on('dishes:changed', () => {
+    EventBus.on(CONSTANTS.EVENTS.DISHES_CHANGED, () => {
       renderCalendar(currentView, currentDate);
       // Если открыта модалка дня, переоткрываем её для обновления содержимого
       if (modalOverlay.classList.contains('active') && currentModalDate) {
@@ -1514,9 +1617,9 @@ const Renderer = (function() {
       // Если открыты рекомендации или любимые, их нужно перерисовать?
       // Пока оставим как есть, можно добавить позже
     });
-    EventBus.on('recipes:changed', () => {
+    EventBus.on(CONSTANTS.EVENTS.RECIPES_CHANGED, () => {
       // Обновление списка рецептов, если он открыт
-      const recipesOverlay = document.getElementById('recipesOverlay');
+      const recipesOverlay = document.getElementById(CONSTANTS.SELECTORS.recipesOverlay);
       if (recipesOverlay && recipesOverlay.classList.contains('active')) {
         renderRecipesList();
       }
@@ -1708,7 +1811,7 @@ function importData(file) {
 
       if (confirm(`Будет импортировано ${dishes.length} блюд и ${recipes ? recipes.length : 0} рецептов. Текущие данные будут заменены. Продолжить?`)) {
         if (recipes) {
-          localStorage.setItem('smartMenuRecipes_v1', JSON.stringify(recipes));
+          localStorage.setItem(CONSTANTS.STORAGE_KEYS.RECIPES, JSON.stringify(recipes));
           RecipeStore.init(); // вызовет событие recipes:changed
         }
         DishStore.replaceAll(dishes); // вызовет событие dishes:changed
@@ -1753,16 +1856,16 @@ function classifyIngredient(ingredient) {
 
 // --- Рецепты (с категориями и группировкой) ---
 function openRecipesModal() {
-  document.getElementById('recipesOverlay').classList.add('active');
+  document.getElementById(CONSTANTS.SELECTORS.recipesOverlay).classList.add('active');
   renderRecipesList();
 }
 
 function closeRecipesModal() {
-  document.getElementById('recipesOverlay').classList.remove('active');
+  document.getElementById(CONSTANTS.SELECTORS.recipesOverlay).classList.remove('active');
 }
 
 function renderRecipesList() {
-  const list = document.getElementById('recipesList');
+  const list = document.getElementById(CONSTANTS.SELECTORS.recipesList);
   const recipes = RecipeStore.getAll();
   list.innerHTML = '';
   if (recipes.length === 0) {
@@ -1862,12 +1965,12 @@ function renderRecipesList() {
 }
 
 function openRecipeForm(recipeId = null) {
-  const overlay = document.getElementById('recipeFormOverlay');
-  const formId = document.getElementById('recipeFormId');
-  const nameInput = document.getElementById('recipeName');
-  const ingrInput = document.getElementById('recipeIngredients');
-  const instrInput = document.getElementById('recipeInstructions');
-  const categorySelect = document.getElementById('recipeCategory');
+  const overlay = document.getElementById(CONSTANTS.SELECTORS.recipeFormOverlay);
+  const formId = document.getElementById(CONSTANTS.SELECTORS.recipeFormId);
+  const nameInput = document.getElementById(CONSTANTS.SELECTORS.recipeName);
+  const ingrInput = document.getElementById(CONSTANTS.SELECTORS.recipeIngredients);
+  const instrInput = document.getElementById(CONSTANTS.SELECTORS.recipeInstructions);
+  const categorySelect = document.getElementById(CONSTANTS.SELECTORS.recipeCategory);
 
   if (recipeId) {
     const recipe = RecipeStore.getById(recipeId);
@@ -1877,28 +1980,28 @@ function openRecipeForm(recipeId = null) {
     ingrInput.value = recipe.ingredients.join('\n');
     instrInput.value = recipe.instructions || '';
     categorySelect.value = recipe.category || Utils.guessCategory(recipe.name);
-    document.getElementById('recipeFormTitle').textContent = '✎ Редактировать рецепт';
+    document.getElementById(CONSTANTS.SELECTORS.recipeFormTitle).textContent = '✎ Редактировать рецепт';
   } else {
     formId.value = '';
     nameInput.value = '';
     ingrInput.value = '';
     instrInput.value = '';
     categorySelect.value = CATEGORIES.OTHER;
-    document.getElementById('recipeFormTitle').textContent = '📝 Новый рецепт';
+    document.getElementById(CONSTANTS.SELECTORS.recipeFormTitle).textContent = '📝 Новый рецепт';
   }
   overlay.classList.add('active');
 }
 
 function closeRecipeForm() {
-  document.getElementById('recipeFormOverlay').classList.remove('active');
+  document.getElementById(CONSTANTS.SELECTORS.recipeFormOverlay).classList.remove('active');
 }
 
 function saveRecipeForm() {
-  const id = document.getElementById('recipeFormId').value;
-  const name = document.getElementById('recipeName').value.trim();
-  const ingredients = document.getElementById('recipeIngredients').value.trim();
-  const instructions = document.getElementById('recipeInstructions').value.trim();
-  const category = document.getElementById('recipeCategory').value;
+  const id = document.getElementById(CONSTANTS.SELECTORS.recipeFormId).value;
+  const name = document.getElementById(CONSTANTS.SELECTORS.recipeName).value.trim();
+  const ingredients = document.getElementById(CONSTANTS.SELECTORS.recipeIngredients).value.trim();
+  const instructions = document.getElementById(CONSTANTS.SELECTORS.recipeInstructions).value.trim();
+  const category = document.getElementById(CONSTANTS.SELECTORS.recipeCategory).value;
 
   if (!name) { alert('Введите название рецепта'); return; }
   if (!ingredients) { alert('Введите ингредиенты'); return; }
@@ -1913,15 +2016,15 @@ function saveRecipeForm() {
 }
 
 function parseRecipeTextFromForm() {
-  const ingrText = document.getElementById('recipeIngredients').value;
+  const ingrText = document.getElementById(CONSTANTS.SELECTORS.recipeIngredients).value;
   const result = Utils.parseRecipeText(ingrText);
   if (result.title) {
-    document.getElementById('recipeName').value = result.title;
+    document.getElementById(CONSTANTS.SELECTORS.recipeName).value = result.title;
     const cat = Utils.guessCategory(result.title);
-    document.getElementById('recipeCategory').value = cat;
+    document.getElementById(CONSTANTS.SELECTORS.recipeCategory).value = cat;
   }
   if (result.ingredients) {
-    document.getElementById('recipeIngredients').value = result.ingredients;
+    document.getElementById(CONSTANTS.SELECTORS.recipeIngredients).value = result.ingredients;
   } else {
     alert('Не удалось распознать ингредиенты. Попробуйте вручную.');
   }
@@ -1940,23 +2043,23 @@ function getSavedShoppingListKeys() {
 }
 
 function openShoppingList() {
-  document.getElementById('shoppingListOverlay').classList.add('active');
-  document.getElementById('shoppingListDisplay').style.display = 'none';
-  document.getElementById('savedListsContainer').style.display = 'block';
+  document.getElementById(CONSTANTS.SELECTORS.shoppingListOverlay).classList.add('active');
+  document.getElementById(CONSTANTS.SELECTORS.shoppingListDisplay).style.display = 'none';
+  document.getElementById(CONSTANTS.SELECTORS.savedListsContainer).style.display = 'block';
   renderSavedLists();
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  document.getElementById('shoppingDateFrom').value = Utils.formatDateLocal(today);
-  document.getElementById('shoppingDateTo').value = Utils.formatDateLocal(tomorrow);
+  document.getElementById(CONSTANTS.SELECTORS.shoppingDateFrom).value = Utils.formatDateLocal(today);
+  document.getElementById(CONSTANTS.SELECTORS.shoppingDateTo).value = Utils.formatDateLocal(tomorrow);
 }
 
 function closeShoppingList() {
-  document.getElementById('shoppingListOverlay').classList.remove('active');
+  document.getElementById(CONSTANTS.SELECTORS.shoppingListOverlay).classList.remove('active');
 }
 
 function renderSavedLists() {
-  const container = document.getElementById('savedListsList');
+  const container = document.getElementById(CONSTANTS.SELECTORS.savedListsList);
   const keys = getSavedShoppingListKeys();
   container.innerHTML = '';
   if (keys.length === 0) {
@@ -1997,8 +2100,8 @@ function renderSavedLists() {
       if (confirm(`Удалить список "${label}"?`)) {
         localStorage.removeItem(key);
         renderSavedLists();
-        document.getElementById('shoppingListDisplay').style.display = 'none';
-        document.getElementById('savedListsContainer').style.display = 'block';
+        document.getElementById(CONSTANTS.SELECTORS.shoppingListDisplay).style.display = 'none';
+        document.getElementById(CONSTANTS.SELECTORS.savedListsContainer).style.display = 'block';
       }
     });
     item.appendChild(deleteBtn);
@@ -2034,11 +2137,11 @@ function loadShoppingList(key) {
     }
   } catch(e) {}
 
-  document.getElementById('savedListsContainer').style.display = 'none';
-  const displayDiv = document.getElementById('shoppingListDisplay');
+  document.getElementById(CONSTANTS.SELECTORS.savedListsContainer).style.display = 'none';
+  const displayDiv = document.getElementById(CONSTANTS.SELECTORS.shoppingListDisplay);
   displayDiv.style.display = 'block';
 
-  const resultTextarea = document.getElementById('shoppingListResult');
+  const resultTextarea = document.getElementById(CONSTANTS.SELECTORS.shoppingListResult);
   resultTextarea.value = text;
 
   let periodLabel = '';
@@ -2059,7 +2162,7 @@ function loadShoppingList(key) {
   }
 
   const container = displayDiv;
-  const textarea = document.getElementById('shoppingListResult');
+  const textarea = document.getElementById(CONSTANTS.SELECTORS.shoppingListResult);
   const oldHeader = container.querySelector('.list-header');
   if (oldHeader) oldHeader.remove();
   const newHeader = document.createElement('div');
@@ -2069,13 +2172,13 @@ function loadShoppingList(key) {
   container.insertBefore(newHeader, textarea);
 
   displayDiv.dataset.currentKey = key;
-  document.getElementById('saveCurrentListBtn').style.display = 'none';
-  document.getElementById('deleteCurrentListBtn').style.display = 'inline-block';
+  document.getElementById(CONSTANTS.SELECTORS.saveCurrentListBtn).style.display = 'none';
+  document.getElementById(CONSTANTS.SELECTORS.deleteCurrentListBtn).style.display = 'inline-block';
 }
 
 function generateShoppingList() {
-  const fromDate = document.getElementById('shoppingDateFrom').value;
-  const toDate = document.getElementById('shoppingDateTo').value;
+  const fromDate = document.getElementById(CONSTANTS.SELECTORS.shoppingDateFrom).value;
+  const toDate = document.getElementById(CONSTANTS.SELECTORS.shoppingDateTo).value;
   if (!fromDate || !toDate) {
     alert('Выберите обе даты периода');
     return;
@@ -2129,11 +2232,11 @@ function generateShoppingList() {
     text += '\n';
   }
 
-  document.getElementById('savedListsContainer').style.display = 'none';
-  const displayDiv = document.getElementById('shoppingListDisplay');
+  document.getElementById(CONSTANTS.SELECTORS.savedListsContainer).style.display = 'none';
+  const displayDiv = document.getElementById(CONSTANTS.SELECTORS.shoppingListDisplay);
   displayDiv.style.display = 'block';
 
-  const resultTextarea = document.getElementById('shoppingListResult');
+  const resultTextarea = document.getElementById(CONSTANTS.SELECTORS.shoppingListResult);
   const periodLabel = fromDate === toDate ? Utils.formatDate(new Date(fromDate)) : `${Utils.formatDate(new Date(fromDate))} — ${Utils.formatDate(new Date(toDate))}`;
   const container = displayDiv;
   const oldHeader = container.querySelector('.list-header');
@@ -2150,12 +2253,12 @@ function generateShoppingList() {
   displayDiv.dataset.toDate = toDate;
   displayDiv.dataset.generatedGroups = JSON.stringify(grouped);
 
-  document.getElementById('saveCurrentListBtn').style.display = 'inline-block';
-  document.getElementById('deleteCurrentListBtn').style.display = 'none';
+  document.getElementById(CONSTANTS.SELECTORS.saveCurrentListBtn).style.display = 'inline-block';
+  document.getElementById(CONSTANTS.SELECTORS.deleteCurrentListBtn).style.display = 'none';
 }
 
 function saveCurrentList() {
-  const displayDiv = document.getElementById('shoppingListDisplay');
+  const displayDiv = document.getElementById(CONSTANTS.SELECTORS.shoppingListDisplay);
   const fromDate = displayDiv.dataset.fromDate;
   const toDate = displayDiv.dataset.toDate;
   if (!fromDate || !toDate) {
@@ -2163,7 +2266,7 @@ function saveCurrentList() {
     return;
   }
 
-  const text = document.getElementById('shoppingListResult').value;
+  const text = document.getElementById(CONSTANTS.SELECTORS.shoppingListResult).value;
   if (!text.trim()) {
     alert('Список пуст, нечего сохранять.');
     return;
@@ -2179,8 +2282,8 @@ function saveCurrentList() {
   localStorage.setItem(key, text);
 
   alert('✅ Список сохранён!');
-  document.getElementById('shoppingListDisplay').style.display = 'none';
-  document.getElementById('savedListsContainer').style.display = 'block';
+  document.getElementById(CONSTANTS.SELECTORS.shoppingListDisplay).style.display = 'none';
+  document.getElementById(CONSTANTS.SELECTORS.savedListsContainer).style.display = 'block';
   renderSavedLists();
   delete displayDiv.dataset.generatedGroups;
   delete displayDiv.dataset.fromDate;
@@ -2190,24 +2293,24 @@ function saveCurrentList() {
 }
 
 function deleteCurrentList() {
-  const displayDiv = document.getElementById('shoppingListDisplay');
+  const displayDiv = document.getElementById(CONSTANTS.SELECTORS.shoppingListDisplay);
   const key = displayDiv.dataset.currentKey;
   if (!key) return;
   if (!confirm(`Удалить этот список?`)) return;
   localStorage.removeItem(key);
-  document.getElementById('shoppingListDisplay').style.display = 'none';
-  document.getElementById('savedListsContainer').style.display = 'block';
+  document.getElementById(CONSTANTS.SELECTORS.shoppingListDisplay).style.display = 'none';
+  document.getElementById(CONSTANTS.SELECTORS.savedListsContainer).style.display = 'block';
   renderSavedLists();
 }
 
 function backToSavedLists() {
-  document.getElementById('shoppingListDisplay').style.display = 'none';
-  document.getElementById('savedListsContainer').style.display = 'block';
+  document.getElementById(CONSTANTS.SELECTORS.shoppingListDisplay).style.display = 'none';
+  document.getElementById(CONSTANTS.SELECTORS.savedListsContainer).style.display = 'block';
   renderSavedLists();
 }
 
 function exportShoppingListTxt() {
-  const text = document.getElementById('shoppingListResult').value;
+  const text = document.getElementById(CONSTANTS.SELECTORS.shoppingListResult).value;
   if (!text.trim()) {
     alert('Нет текста для экспорта.');
     return;
@@ -2222,53 +2325,53 @@ function exportShoppingListTxt() {
 }
 
 function initShoppingListHandlers() {
-  document.getElementById('generateShoppingListBtn').addEventListener('click', generateShoppingList);
-  document.getElementById('saveCurrentListBtn').addEventListener('click', saveCurrentList);
-  document.getElementById('deleteCurrentListBtn').addEventListener('click', deleteCurrentList);
-  document.getElementById('backToSavedListsBtn').addEventListener('click', backToSavedLists);
-  document.getElementById('exportShoppingListTxtBtn').addEventListener('click', exportShoppingListTxt);
+  document.getElementById(CONSTANTS.SELECTORS.generateShoppingListBtn).addEventListener('click', generateShoppingList);
+  document.getElementById(CONSTANTS.SELECTORS.saveCurrentListBtn).addEventListener('click', saveCurrentList);
+  document.getElementById(CONSTANTS.SELECTORS.deleteCurrentListBtn).addEventListener('click', deleteCurrentList);
+  document.getElementById(CONSTANTS.SELECTORS.backToSavedListsBtn).addEventListener('click', backToSavedLists);
+  document.getElementById(CONSTANTS.SELECTORS.exportShoppingListTxtBtn).addEventListener('click', exportShoppingListTxt);
 }
 
 // ============================================================
 // 9. ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 (function init() {
-  RecipeStore.init(); // вызовет событие recipes:changed, но подписка ещё не установлена? Она внутри Renderer уже выполнена, так как Renderer определён выше.
+  RecipeStore.init(); // вызовет событие recipes:changed, но подписка уже установлена
   DishStore.init(); // аналогично
 
   function showWelcome() {
-    const overlay = document.getElementById('welcomeOverlay');
+    const overlay = document.getElementById(CONSTANTS.SELECTORS.welcomeOverlay);
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
     overlay.focus();
   }
   function hideWelcome() {
-    const overlay = document.getElementById('welcomeOverlay');
+    const overlay = document.getElementById(CONSTANTS.SELECTORS.welcomeOverlay);
     overlay.classList.remove('active');
     document.body.style.overflow = '';
   }
 
   setTimeout(showWelcome, 300);
-  document.getElementById('welcomeStartBtn').addEventListener('click', hideWelcome);
+  document.getElementById(CONSTANTS.SELECTORS.welcomeStartBtn).addEventListener('click', hideWelcome);
 
-  let theme = localStorage.getItem('mealPlannerTheme');
+  let theme = localStorage.getItem(CONSTANTS.STORAGE_KEYS.THEME);
   if (!theme) {
     theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
   if (theme === 'dark') document.body.classList.add('dark-theme');
 
-  document.getElementById('themeToggle').addEventListener('click', function() {
+  document.getElementById(CONSTANTS.SELECTORS.themeToggle).addEventListener('click', function() {
     document.body.classList.toggle('dark-theme');
-    localStorage.setItem('mealPlannerTheme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+    localStorage.setItem(CONSTANTS.STORAGE_KEYS.THEME, document.body.classList.contains('dark-theme') ? 'dark' : 'light');
   });
 
-  document.getElementById('searchInput').addEventListener('input', function() {
+  document.getElementById(CONSTANTS.SELECTORS.searchInput).addEventListener('input', function() {
     Renderer.setSearchQuery(this.value);
   });
-  document.getElementById('statusFilter').addEventListener('change', function() {
+  document.getElementById(CONSTANTS.SELECTORS.statusFilter).addEventListener('change', function() {
     Renderer.setStatusFilter(this.value);
   });
-  document.getElementById('categoryFilter').addEventListener('change', function() {
+  document.getElementById(CONSTANTS.SELECTORS.categoryFilter).addEventListener('change', function() {
     Renderer.setCategoryFilter(this.value);
   });
 
@@ -2318,7 +2421,7 @@ function initShoppingListHandlers() {
   Renderer.setCurrentView('month');
   Renderer.renderCalendar('month', now); // первоначальная отрисовка
 
-  document.getElementById('prevMonth').addEventListener('click', function() {
+  document.getElementById(CONSTANTS.SELECTORS.prevMonth).addEventListener('click', function() {
     const curDate = Renderer.getCurrentDate();
     const view = Renderer.getCurrentView();
     const newDate = new Date(curDate);
@@ -2328,7 +2431,7 @@ function initShoppingListHandlers() {
     Renderer.renderCalendar(view, newDate);
   });
 
-  document.getElementById('nextMonth').addEventListener('click', function() {
+  document.getElementById(CONSTANTS.SELECTORS.nextMonth).addEventListener('click', function() {
     const curDate = Renderer.getCurrentDate();
     const view = Renderer.getCurrentView();
     const newDate = new Date(curDate);
@@ -2338,14 +2441,14 @@ function initShoppingListHandlers() {
     Renderer.renderCalendar(view, newDate);
   });
 
-  document.getElementById('todayBtn').addEventListener('click', function() {
+  document.getElementById(CONSTANTS.SELECTORS.todayBtn).addEventListener('click', function() {
     const now = new Date();
     const view = Renderer.getCurrentView();
     Renderer.setCurrentDate(now);
     Renderer.renderCalendar(view, now);
   });
 
-  document.querySelectorAll('#viewToggle button').forEach(btn => {
+  document.querySelectorAll(CONSTANTS.SELECTORS.viewToggleButtons).forEach(btn => {
     btn.addEventListener('click', function() {
       const view = this.dataset.view;
       Renderer.setCurrentView(view);
@@ -2355,15 +2458,15 @@ function initShoppingListHandlers() {
   });
 
   const modals = [
-    { overlay: document.getElementById('modalOverlay'), close: Renderer.closeModal },
-    { overlay: document.getElementById('recOverlay'), close: Renderer.closeRecModal },
-    { overlay: document.getElementById('addModalOverlay'), close: Renderer.closeAddModal },
-    { overlay: document.getElementById('exportModalOverlay'), close: () => document.getElementById('exportModalOverlay').classList.remove('active') },
-    { overlay: document.getElementById('choiceOverlay'), close: () => document.getElementById('choiceOverlay').classList.remove('active') },
-    { overlay: document.getElementById('welcomeOverlay'), close: hideWelcome },
-    { overlay: document.getElementById('recipesOverlay'), close: closeRecipesModal },
-    { overlay: document.getElementById('recipeFormOverlay'), close: closeRecipeForm },
-    { overlay: document.getElementById('shoppingListOverlay'), close: closeShoppingList }
+    { overlay: document.getElementById(CONSTANTS.SELECTORS.modalOverlay), close: Renderer.closeModal },
+    { overlay: document.getElementById(CONSTANTS.SELECTORS.recOverlay), close: Renderer.closeRecModal },
+    { overlay: document.getElementById(CONSTANTS.SELECTORS.addModalOverlay), close: Renderer.closeAddModal },
+    { overlay: document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay), close: () => document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay).classList.remove('active') },
+    { overlay: document.getElementById(CONSTANTS.SELECTORS.choiceOverlay), close: () => document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.remove('active') },
+    { overlay: document.getElementById(CONSTANTS.SELECTORS.welcomeOverlay), close: hideWelcome },
+    { overlay: document.getElementById(CONSTANTS.SELECTORS.recipesOverlay), close: closeRecipesModal },
+    { overlay: document.getElementById(CONSTANTS.SELECTORS.recipeFormOverlay), close: closeRecipeForm },
+    { overlay: document.getElementById(CONSTANTS.SELECTORS.shoppingListOverlay), close: closeShoppingList }
   ];
 
   modals.forEach(({ overlay, close }) => {
@@ -2381,40 +2484,40 @@ function initShoppingListHandlers() {
       const activeModal = document.querySelector('.modal-overlay.active, .choice-overlay.active, .welcome-overlay.active');
       if (activeModal) {
         const id = activeModal.id;
-        if (id === 'modalOverlay') Renderer.closeModal();
-        else if (id === 'recOverlay') Renderer.closeRecModal();
-        else if (id === 'addModalOverlay') Renderer.closeAddModal();
-        else if (id === 'exportModalOverlay') document.getElementById('exportModalOverlay').classList.remove('active');
-        else if (id === 'choiceOverlay') document.getElementById('choiceOverlay').classList.remove('active');
-        else if (id === 'welcomeOverlay') hideWelcome();
-        else if (id === 'recipesOverlay') closeRecipesModal();
-        else if (id === 'recipeFormOverlay') closeRecipeForm();
-        else if (id === 'shoppingListOverlay') closeShoppingList();
+        if (id === CONSTANTS.SELECTORS.modalOverlay) Renderer.closeModal();
+        else if (id === CONSTANTS.SELECTORS.recOverlay) Renderer.closeRecModal();
+        else if (id === CONSTANTS.SELECTORS.addModalOverlay) Renderer.closeAddModal();
+        else if (id === CONSTANTS.SELECTORS.exportModalOverlay) document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay).classList.remove('active');
+        else if (id === CONSTANTS.SELECTORS.choiceOverlay) document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.remove('active');
+        else if (id === CONSTANTS.SELECTORS.welcomeOverlay) hideWelcome();
+        else if (id === CONSTANTS.SELECTORS.recipesOverlay) closeRecipesModal();
+        else if (id === CONSTANTS.SELECTORS.recipeFormOverlay) closeRecipeForm();
+        else if (id === CONSTANTS.SELECTORS.shoppingListOverlay) closeShoppingList();
       }
     }
   });
 
-  document.getElementById('modalClose').addEventListener('click', Renderer.closeModal);
-  document.getElementById('recClose').addEventListener('click', Renderer.closeRecModal);
-  document.getElementById('addModalClose').addEventListener('click', Renderer.closeAddModal);
-  document.getElementById('addModalCancel').addEventListener('click', Renderer.closeAddModal);
-  document.getElementById('exportModalClose').addEventListener('click', () => document.getElementById('exportModalOverlay').classList.remove('active'));
-  document.getElementById('recipesClose').addEventListener('click', closeRecipesModal);
-  document.getElementById('recipeFormClose').addEventListener('click', closeRecipeForm);
-  document.getElementById('shoppingListClose').addEventListener('click', closeShoppingList);
+  document.getElementById(CONSTANTS.SELECTORS.modalClose).addEventListener('click', Renderer.closeModal);
+  document.getElementById(CONSTANTS.SELECTORS.recClose).addEventListener('click', Renderer.closeRecModal);
+  document.getElementById(CONSTANTS.SELECTORS.addModalClose).addEventListener('click', Renderer.closeAddModal);
+  document.getElementById(CONSTANTS.SELECTORS.addModalCancel).addEventListener('click', Renderer.closeAddModal);
+  document.getElementById(CONSTANTS.SELECTORS.exportModalClose).addEventListener('click', () => document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay).classList.remove('active'));
+  document.getElementById(CONSTANTS.SELECTORS.recipesClose).addEventListener('click', closeRecipesModal);
+  document.getElementById(CONSTANTS.SELECTORS.recipeFormClose).addEventListener('click', closeRecipeForm);
+  document.getElementById(CONSTANTS.SELECTORS.shoppingListClose).addEventListener('click', closeShoppingList);
 
-  document.getElementById('suggestBtn').addEventListener('click', function() {
-    document.getElementById('choiceOverlay').classList.add('active');
+  document.getElementById(CONSTANTS.SELECTORS.suggestBtn).addEventListener('click', function() {
+    document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.add('active');
   });
-  document.getElementById('choiceClose').addEventListener('click', function() {
-    document.getElementById('choiceOverlay').classList.remove('active');
+  document.getElementById(CONSTANTS.SELECTORS.choiceClose).addEventListener('click', function() {
+    document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.remove('active');
   });
-  document.getElementById('choiceFromMenu').addEventListener('click', function() {
-    document.getElementById('choiceOverlay').classList.remove('active');
+  document.getElementById(CONSTANTS.SELECTORS.choiceFromMenu).addEventListener('click', function() {
+    document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.remove('active');
     Renderer.showCategorySelection();
   });
-  document.getElementById('choiceFromTaste').addEventListener('click', function() {
-    document.getElementById('choiceOverlay').classList.remove('active');
+  document.getElementById(CONSTANTS.SELECTORS.choiceFromTaste).addEventListener('click', function() {
+    document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.remove('active');
     const random = DishStore.getRandomDishFromTaste();
     const answer = `🍽️ ${random.categoryLabel}\n\n${random.name}\n\nХотите добавить его в план на завтра?`;
     if (confirm(answer)) {
@@ -2426,22 +2529,22 @@ function initShoppingListHandlers() {
       alert(`✅ Блюдо "${random.name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
     }
   });
-  document.getElementById('choiceFromRecipes').addEventListener('click', function() {
-    document.getElementById('choiceOverlay').classList.remove('active');
+  document.getElementById(CONSTANTS.SELECTORS.choiceFromRecipes).addEventListener('click', function() {
+    document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.remove('active');
     openRecipesModal();
   });
 
-  document.getElementById('favoritesBtn').addEventListener('click', Renderer.openFavorites);
-  document.getElementById('recipesBtn').addEventListener('click', openRecipesModal);
-  document.getElementById('shoppingListBtn').addEventListener('click', openShoppingList);
+  document.getElementById(CONSTANTS.SELECTORS.favoritesBtn).addEventListener('click', Renderer.openFavorites);
+  document.getElementById(CONSTANTS.SELECTORS.recipesBtn).addEventListener('click', openRecipesModal);
+  document.getElementById(CONSTANTS.SELECTORS.shoppingListBtn).addEventListener('click', openShoppingList);
 
-  document.getElementById('addDishBtn').addEventListener('click', Renderer.openAddModal);
-  document.getElementById('addModalSave').addEventListener('click', function() {
-    const nameInput = document.getElementById('newDishName');
-    const noteInput = document.getElementById('newDishNote');
-    const dateInput = document.getElementById('newDishDate');
-    const statusSelect = document.getElementById('newDishStatus');
-    const categorySelect = document.getElementById('newDishCategory');
+  document.getElementById(CONSTANTS.SELECTORS.addDishBtn).addEventListener('click', Renderer.openAddModal);
+  document.getElementById(CONSTANTS.SELECTORS.addModalSave).addEventListener('click', function() {
+    const nameInput = document.getElementById(CONSTANTS.SELECTORS.newDishName);
+    const noteInput = document.getElementById(CONSTANTS.SELECTORS.newDishNote);
+    const dateInput = document.getElementById(CONSTANTS.SELECTORS.newDishDate);
+    const statusSelect = document.getElementById(CONSTANTS.SELECTORS.newDishStatus);
+    const categorySelect = document.getElementById(CONSTANTS.SELECTORS.newDishCategory);
     const name = nameInput.value.trim();
     if (!name) { alert('Введи название блюда'); return; }
     let date = dateInput.value;
@@ -2458,38 +2561,38 @@ function initShoppingListHandlers() {
     noteInput.value = '';
   });
 
-  document.getElementById('exportBtn').addEventListener('click', function() {
-    document.getElementById('exportModalOverlay').classList.add('active');
+  document.getElementById(CONSTANTS.SELECTORS.exportBtn).addEventListener('click', function() {
+    document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay).classList.add('active');
   });
-  document.querySelectorAll('.export-option').forEach(btn => {
+  document.querySelectorAll(CONSTANTS.SELECTORS.exportOptions).forEach(btn => {
     btn.addEventListener('click', function() {
       const format = this.dataset.format;
-      document.getElementById('exportModalOverlay').classList.remove('active');
+      document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay).classList.remove('active');
       exportData(format);
     });
   });
 
-  document.getElementById('importBtn').addEventListener('click', function() {
-    document.getElementById('importFileInput').click();
+  document.getElementById(CONSTANTS.SELECTORS.importBtn).addEventListener('click', function() {
+    document.getElementById(CONSTANTS.SELECTORS.importFileInput).click();
   });
-  document.getElementById('importFileInput').addEventListener('change', function(e) {
+  document.getElementById(CONSTANTS.SELECTORS.importFileInput).addEventListener('change', function(e) {
     if (this.files && this.files.length > 0) {
       importData(this.files[0]);
       this.value = '';
     }
   });
 
-  document.getElementById('addRecipeBtn').addEventListener('click', function() {
+  document.getElementById(CONSTANTS.SELECTORS.addRecipeBtn).addEventListener('click', function() {
     openRecipeForm(null);
   });
-  document.getElementById('recipeFormCancel').addEventListener('click', closeRecipeForm);
-  document.getElementById('recipeFormSave').addEventListener('click', saveRecipeForm);
-  document.getElementById('recipeParseBtn').addEventListener('click', parseRecipeTextFromForm);
+  document.getElementById(CONSTANTS.SELECTORS.recipeFormCancel).addEventListener('click', closeRecipeForm);
+  document.getElementById(CONSTANTS.SELECTORS.recipeFormSave).addEventListener('click', saveRecipeForm);
+  document.getElementById(CONSTANTS.SELECTORS.recipeParseBtn).addEventListener('click', parseRecipeTextFromForm);
 
   initShoppingListHandlers();
 
   let touchStartX = 0, touchEndX = 0;
-  const wrap = document.getElementById('calendarWrap');
+  const wrap = document.getElementById(CONSTANTS.SELECTORS.calendarWrap);
   wrap.addEventListener('touchstart', (e) => {
     touchStartX = e.changedTouches[0].screenX;
   }, { passive: true });
