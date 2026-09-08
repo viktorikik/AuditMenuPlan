@@ -164,11 +164,30 @@ const Utils = {
 };
 
 // ============================================================
-// ГЛОБАЛЬНАЯ ФУНКЦИЯ ОШИБКИ ХРАНИЛИЩА (добавлено)
+// ГЛОБАЛЬНАЯ ФУНКЦИЯ ОШИБКИ ХРАНИЛИЩА
 // ============================================================
 function showStorageError(action) {
   alert(`⚠️ Не удалось сохранить данные (${action}). Проверьте доступность localStorage и переполнение хранилища.`);
 }
+
+// ============================================================
+// ШИНА СОБЫТИЙ (EventBus)
+// ============================================================
+const EventBus = {
+  _events: {},
+  on(event, callback) {
+    if (!this._events[event]) this._events[event] = [];
+    this._events[event].push(callback);
+  },
+  off(event, callback) {
+    if (!this._events[event]) return;
+    this._events[event] = this._events[event].filter(cb => cb !== callback);
+  },
+  emit(event, data) {
+    if (!this._events[event]) return;
+    this._events[event].forEach(cb => cb(data));
+  }
+};
 
 // ============================================================
 // 3. ХРАНИЛИЩЕ РЕЦЕПТОВ (с категорией)
@@ -201,14 +220,17 @@ const RecipeStore = (function() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(recipes));
     } catch(e) {
       console.error('Ошибка сохранения рецептов:', e);
-      showStorageError('рецепты'); // добавлено
+      showStorageError('рецепты');
     }
+    EventBus.emit('recipes:changed');
   }
 
   function init() {
     if (!load()) {
       recipes = [];
       save();
+    } else {
+      EventBus.emit('recipes:changed');
     }
   }
 
@@ -322,8 +344,9 @@ const DishStore = (function() {
       cacheAllWithDone = null;
     } catch (e) {
       console.error('Ошибка сохранения данных:', e);
-      showStorageError('блюда'); // добавлено
+      showStorageError('блюда');
     }
+    EventBus.emit('dishes:changed');
   }
 
   function init() {
@@ -350,7 +373,9 @@ const DishStore = (function() {
         });
       });
       dishes = result;
-      save();
+      save(); // вызовет EventBus.emit('dishes:changed')
+    } else {
+      EventBus.emit('dishes:changed');
     }
   }
 
@@ -450,7 +475,11 @@ const DishStore = (function() {
 
   function getFavorites() { return dishes.filter(d => d.liked); }
   function invalidateCache() { cacheUnique = null; cacheRecs = null; cacheAllWithDone = null; }
-  function replaceAll(newDishes) { dishes = newDishes.map(normalizeDish); save(); invalidateCache(); }
+  function replaceAll(newDishes) {
+    dishes = newDishes.map(normalizeDish);
+    save(); // вызовет событие
+    invalidateCache();
+  }
   function getRandomDishFromTaste() {
     const categories = [CATEGORIES.SOUP, CATEGORIES.MAIN, CATEGORIES.SALAD];
     const cat = categories[Math.floor(Math.random() * categories.length)];
@@ -467,7 +496,6 @@ const DishStore = (function() {
     return true;
   }
 
-  // НОВЫЙ МЕТОД (добавлено)
   function updateDishDate(id, newDate) {
     const dish = dishes.find(d => d.id === id);
     if (!dish) return false;
@@ -491,6 +519,7 @@ const Renderer = (function() {
   let currentView = 'month';
   let currentDate = new Date();
   let searchQuery = '', statusFilter = 'all', categoryFilter = 'all';
+  let currentModalDate = null; // для автообновления открытой модалки дня
 
   const monthTitle = document.getElementById('monthTitle');
   const calendarContent = document.getElementById('calendarContent');
@@ -578,8 +607,7 @@ const Renderer = (function() {
         const newNote = noteInput.value.trim();
         if (newName && newName !== currentName) DishStore.editDishName(id, newName);
         if (newNote !== currentNote) DishStore.updateNote(id, newNote);
-        openModal(dateStr);
-        renderCalendar(currentView, currentDate);
+        // Событие dishes:changed автоматически обновит календарь и переоткроет модалку дня
       };
       nameInput.addEventListener('blur', saveEdit);
       noteInput.addEventListener('blur', saveEdit);
@@ -604,8 +632,7 @@ const Renderer = (function() {
     likeBtn.addEventListener('click', function(e) {
       e.stopPropagation();
       DishStore.toggleLike(Number(this.dataset.id));
-      openModal(dateStr);
-      renderCalendar(currentView, currentDate);
+      // Событие dishes:changed обновит интерфейс
     });
     actions.appendChild(likeBtn);
 
@@ -617,8 +644,7 @@ const Renderer = (function() {
     toggleBtn.addEventListener('click', function(e) {
       e.stopPropagation();
       DishStore.toggleStatus(Number(this.dataset.id));
-      openModal(dateStr);
-      renderCalendar(currentView, currentDate);
+      // Событие dishes:changed обновит интерфейс
     });
     actions.appendChild(toggleBtn);
 
@@ -631,8 +657,7 @@ const Renderer = (function() {
       e.stopPropagation();
       if (confirm('Удалить это блюдо?')) {
         DishStore.removeDish(Number(this.dataset.id));
-        openModal(dateStr);
-        renderCalendar(currentView, currentDate);
+        // Событие dishes:changed обновит интерфейс
       }
     });
     actions.appendChild(deleteBtn);
@@ -820,8 +845,7 @@ const Renderer = (function() {
             const category = existing ? existing.category : Utils.guessCategory(name);
             const recipeId = existing ? existing.recipeId : null;
             DishStore.addDish(name, STATUSES.PLANNED, dateStr, category, false, '', recipeId);
-            openModal(dateStr);
-            renderCalendar(currentView, currentDate);
+            // Событие dishes:changed обновит интерфейс
           });
           suggestList.appendChild(suggestItem);
         });
@@ -850,8 +874,7 @@ const Renderer = (function() {
       const note = document.getElementById('modalNewDishNote').value.trim();
       const recipeId = recipeSelect.value ? Number(recipeSelect.value) : null;
       DishStore.addDish(name, status, dateStr, category, false, note, recipeId);
-      openModal(dateStr);
-      renderCalendar(currentView, currentDate);
+      // Событие dishes:changed обновит интерфейс
       nameInput.value = '';
       document.getElementById('modalNewDishNote').value = '';
       recipeSelect.value = '';
@@ -1062,6 +1085,7 @@ const Renderer = (function() {
 
   // --- Модалки ---
   function openModal(dateStr) {
+    currentModalDate = dateStr; // запоминаем дату для автообновления
     const d = new Date(dateStr);
     modalDate.textContent = Utils.formatDate(d);
     const dayDishes = DishStore.getForDate(dateStr);
@@ -1092,9 +1116,10 @@ const Renderer = (function() {
 
   function closeModal() {
     modalOverlay.classList.remove('active');
+    currentModalDate = null;
   }
 
-  // --- Приватная функция добавления блюда на завтра (НОВАЯ) ---
+  // --- Приватная функция добавления блюда на завтра ---
   function addDishToTomorrow(name, recipeId = null, closeModalCallback) {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -1118,9 +1143,9 @@ const Renderer = (function() {
     }
 
     DishStore.addDish(name, STATUSES.PLANNED, dateStr, category, false, '', finalRecipeId);
+    // Событие dishes:changed автоматически обновит интерфейс
     if (typeof closeModalCallback === 'function') closeModalCallback();
     alert(`✅ Блюдо "${name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
-    renderCalendar(currentView, currentDate);
   }
 
   // --- Рекомендации с выбором категории ---
@@ -1347,8 +1372,9 @@ const Renderer = (function() {
           const dish = DishStore.getAll().find(d => d.id === id);
           if (dish) {
             DishStore.toggleLike(id);
-            openFavorites();
-            renderCalendar(currentView, currentDate);
+            // Событие dishes:changed обновит интерфейс (календарь и, возможно, модалку)
+            openFavorites(); // но для обновления списка любимых нужно перерисовать его
+            // Лучше подписаться на событие и перерисовывать открытую модалку любимых, но пока вызовем вручную
           }
         });
         section.appendChild(row);
@@ -1477,6 +1503,30 @@ const Renderer = (function() {
     });
   }
 
+  // --- Автоматическое обновление при изменении данных ---
+  function initEventListeners() {
+    EventBus.on('dishes:changed', () => {
+      renderCalendar(currentView, currentDate);
+      // Если открыта модалка дня, переоткрываем её для обновления содержимого
+      if (modalOverlay.classList.contains('active') && currentModalDate) {
+        openModal(currentModalDate);
+      }
+      // Если открыты рекомендации или любимые, их нужно перерисовать?
+      // Пока оставим как есть, можно добавить позже
+    });
+    EventBus.on('recipes:changed', () => {
+      // Обновление списка рецептов, если он открыт
+      const recipesOverlay = document.getElementById('recipesOverlay');
+      if (recipesOverlay && recipesOverlay.classList.contains('active')) {
+        renderRecipesList();
+      }
+      // Также можно обновить селекты рецептов в открытых модалках, но пока пропустим
+    });
+  }
+
+  // Инициализация слушателей событий
+  initEventListeners();
+
   return {
     renderCalendar, renderMenu, openModal, closeModal, openFavorites,
     closeRecModal, openAddModal, closeAddModal,
@@ -1492,7 +1542,7 @@ const Renderer = (function() {
 })();
 
 // ============================================================
-// 6. ВАЛИДАЦИЯ ИМПОРТА (добавлено)
+// 6. ВАЛИДАЦИЯ ИМПОРТА
 // ============================================================
 function validateDish(dish, index) {
   if (!dish || typeof dish !== 'object') return `Блюдо №${index+1}: не объект`;
@@ -1519,7 +1569,7 @@ function validateRecipe(recipe, index) {
 }
 
 // ============================================================
-// 7. ФУНКЦИИ ЭКСПОРТА / ИМПОРТА (обновлён TXT)
+// 7. ФУНКЦИИ ЭКСПОРТА / ИМПОРТА
 // ============================================================
 function exportData(format) {
   const data = DishStore.getAll();
@@ -1659,12 +1709,9 @@ function importData(file) {
       if (confirm(`Будет импортировано ${dishes.length} блюд и ${recipes ? recipes.length : 0} рецептов. Текущие данные будут заменены. Продолжить?`)) {
         if (recipes) {
           localStorage.setItem('smartMenuRecipes_v1', JSON.stringify(recipes));
-          RecipeStore.init();
+          RecipeStore.init(); // вызовет событие recipes:changed
         }
-        DishStore.replaceAll(dishes);
-        const view = Renderer.getCurrentView();
-        const curDate = Renderer.getCurrentDate();
-        Renderer.renderCalendar(view, curDate);
+        DishStore.replaceAll(dishes); // вызовет событие dishes:changed
         alert('✅ Данные успешно импортированы!');
       }
     } catch (err) {
@@ -1862,7 +1909,7 @@ function saveRecipeForm() {
     RecipeStore.add(name, ingredients, instructions, category);
   }
   closeRecipeForm();
-  renderRecipesList();
+  renderRecipesList(); // можно оставить, так как событие recipes:changed уже обновит
 }
 
 function parseRecipeTextFromForm() {
@@ -2186,8 +2233,8 @@ function initShoppingListHandlers() {
 // 9. ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 (function init() {
-  RecipeStore.init();
-  DishStore.init();
+  RecipeStore.init(); // вызовет событие recipes:changed, но подписка ещё не установлена? Она внутри Renderer уже выполнена, так как Renderer определён выше.
+  DishStore.init(); // аналогично
 
   function showWelcome() {
     const overlay = document.getElementById('welcomeOverlay');
@@ -2262,16 +2309,14 @@ function initShoppingListHandlers() {
     }
     // Исправление: используем метод DishStore вместо прямого обращения к localStorage
     DishStore.updateDishDate(draggedDishId, targetDate);
-    const view = Renderer.getCurrentView();
-    const curDate = Renderer.getCurrentDate();
-    Renderer.renderCalendar(view, curDate);
+    // Событие dishes:changed автоматически обновит календарь
     draggedDishId = null; draggedFromDate = null;
   });
 
   const now = new Date();
   Renderer.setCurrentDate(now);
   Renderer.setCurrentView('month');
-  Renderer.renderCalendar('month', now);
+  Renderer.renderCalendar('month', now); // первоначальная отрисовка
 
   document.getElementById('prevMonth').addEventListener('click', function() {
     const curDate = Renderer.getCurrentDate();
@@ -2377,9 +2422,7 @@ function initShoppingListHandlers() {
       tomorrow.setDate(tomorrow.getDate() + 1);
       const dateStr = Utils.formatDateLocal(tomorrow);
       DishStore.addDish(random.name, STATUSES.PLANNED, dateStr, random.category, false, '');
-      const view = Renderer.getCurrentView();
-      const curDate = Renderer.getCurrentDate();
-      Renderer.renderCalendar(view, curDate);
+      // Событие dishes:changed автоматически обновит интерфейс
       alert(`✅ Блюдо "${random.name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
     }
   });
@@ -2410,9 +2453,7 @@ function initShoppingListHandlers() {
     const note = noteInput.value.trim();
     DishStore.addDish(name, statusSelect.value, date, categorySelect.value, false, note);
     Renderer.closeAddModal();
-    const view = Renderer.getCurrentView();
-    const curDate = Renderer.getCurrentDate();
-    Renderer.renderCalendar(view, curDate);
+    // Событие dishes:changed автоматически обновит календарь
     nameInput.value = '';
     noteInput.value = '';
   });
