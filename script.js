@@ -254,6 +254,17 @@ const Utils = {
       }
     }
     return { title, ingredients: ingredients.join('\n') };
+  },
+
+  // Новая функция debounce
+  debounce(func, delay = 300) {
+    let timeoutId;
+    return function(...args) {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        func.apply(this, args);
+      }, delay);
+    };
   }
 };
 
@@ -291,15 +302,12 @@ let lastFocusedElement = null;
 function trapFocus(overlay, closeCallback) {
   if (!overlay) return;
 
-  // Сохраняем элемент, который был в фокусе до открытия
   lastFocusedElement = document.activeElement;
 
-  // Находим все фокусируемые элементы внутри оверлея
   const focusableElements = overlay.querySelectorAll(
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
   );
   if (focusableElements.length === 0) {
-    // Если нет фокусируемых элементов, делаем сам оверлей фокусируемым
     overlay.setAttribute('tabindex', '-1');
     overlay.focus();
     return;
@@ -308,7 +316,6 @@ function trapFocus(overlay, closeCallback) {
   const firstElement = focusableElements[0];
   const lastElement = focusableElements[focusableElements.length - 1];
 
-  // Устанавливаем фокус на первый элемент
   firstElement.focus();
 
   const handleKeyDown = (e) => {
@@ -331,7 +338,6 @@ function trapFocus(overlay, closeCallback) {
 
   overlay.addEventListener('keydown', handleKeyDown);
 
-  // Добавляем метод для очистки слушателя при закрытии (опционально)
   overlay._trapFocusCleanup = () => {
     overlay.removeEventListener('keydown', handleKeyDown);
     if (lastFocusedElement) {
@@ -342,7 +348,7 @@ function trapFocus(overlay, closeCallback) {
 }
 
 // ============================================================
-// 3. ХРАНИЛИЩЕ РЕЦЕПТОВ (с категорией)
+// 3. ХРАНИЛИЩЕ РЕЦЕПТОВ
 // ============================================================
 const RecipeStore = (function() {
   const STORAGE_KEY = CONSTANTS.STORAGE_KEYS.RECIPES;
@@ -525,7 +531,7 @@ const DishStore = (function() {
         });
       });
       dishes = result;
-      save(); // вызовет EventBus.emit('dishes:changed')
+      save();
     } else {
       EventBus.emit(CONSTANTS.EVENTS.DISHES_CHANGED);
     }
@@ -629,7 +635,7 @@ const DishStore = (function() {
   function invalidateCache() { cacheUnique = null; cacheRecs = null; cacheAllWithDone = null; }
   function replaceAll(newDishes) {
     dishes = newDishes.map(normalizeDish);
-    save(); // вызовет событие
+    save();
     invalidateCache();
   }
   function getRandomDishFromTaste() {
@@ -671,9 +677,8 @@ const Renderer = (function() {
   let currentView = 'month';
   let currentDate = new Date();
   let searchQuery = '', statusFilter = 'all', categoryFilter = 'all';
-  let currentModalDate = null; // для автообновления открытой модалки дня
+  let currentModalDate = null;
 
-  // Получение элементов по селекторам из CONSTANTS
   const els = {};
   for (const key in CONSTANTS.SELECTORS) {
     if (typeof CONSTANTS.SELECTORS[key] === 'string' && !CONSTANTS.SELECTORS[key].startsWith('#')) {
@@ -681,7 +686,6 @@ const Renderer = (function() {
     }
   }
 
-  // Для удобства присвоим основным переменным
   const monthTitle = els.monthTitle;
   const calendarContent = els.calendarContent;
   const menuContent = els.menuContent;
@@ -693,7 +697,6 @@ const Renderer = (function() {
   const recTitle = els.recTitle;
   const recContent = els.recContent;
 
-  // --- Вспомогательные функции ---
   function buildDishElement(dish, dateStr) {
     const dishDiv = document.createElement('div');
     dishDiv.className = `modal-dish ${dish.status}`;
@@ -910,7 +913,6 @@ const Renderer = (function() {
 
     addSection.appendChild(addForm);
 
-    // ---- Блок поиска и фильтров для предложений ----
     const suggestControls = document.createElement('div');
     suggestControls.className = 'suggest-controls';
     const searchInput = document.createElement('input');
@@ -963,7 +965,9 @@ const Renderer = (function() {
       });
     }
 
-    searchInput.addEventListener('input', filterSuggestions);
+    // Применяем debounce для поля поиска предложений
+    const debouncedFilterSuggestions = Utils.debounce(filterSuggestions, 200);
+    searchInput.addEventListener('input', debouncedFilterSuggestions);
     filterSelect.addEventListener('change', filterSuggestions);
 
     function renderSuggestions() {
@@ -1295,7 +1299,7 @@ const Renderer = (function() {
     modalContent.appendChild(buildAddForm(dateStr));
 
     modalOverlay.classList.add('active');
-    trapFocus(modalOverlay, closeModal); // применяем ловушку фокуса
+    trapFocus(modalOverlay, closeModal);
   }
 
   function closeModal() {
@@ -2432,9 +2436,13 @@ function initShoppingListHandlers() {
     localStorage.setItem(CONSTANTS.STORAGE_KEYS.THEME, document.body.classList.contains('dark-theme') ? 'dark' : 'light');
   });
 
-  document.getElementById(CONSTANTS.SELECTORS.searchInput).addEventListener('input', function() {
+  // Применяем debounce для поля поиска
+  const searchInput = document.getElementById(CONSTANTS.SELECTORS.searchInput);
+  const debouncedSetSearchQuery = Utils.debounce(function() {
     Renderer.setSearchQuery(this.value);
-  });
+  }, 300);
+  searchInput.addEventListener('input', debouncedSetSearchQuery);
+
   document.getElementById(CONSTANTS.SELECTORS.statusFilter).addEventListener('change', function() {
     Renderer.setStatusFilter(this.value);
   });
