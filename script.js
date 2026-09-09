@@ -1126,7 +1126,7 @@ const Renderer = (function() {
 
     const hint = document.createElement('div');
     hint.className = 'week-drag-hint';
-    hint.textContent = '🔄 Перетащите блюдо на другой день';
+    hint.textContent = '🔄 Перетащите блюдо на другой день (на мобильном: удерживайте палец)';
     list.appendChild(hint);
 
     const dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -1160,6 +1160,10 @@ const Renderer = (function() {
           chip.className = `meal-chip ${dish.status}`;
           if (dish.liked) chip.classList.add('liked');
           chip.textContent = dish.name;
+          chip.draggable = true;
+          chip.dataset.id = dish.id;
+          chip.dataset.date = dateStr;
+
           if (dish.recipeId) {
             const badge = document.createElement('span');
             badge.className = 'recipe-badge';
@@ -1173,13 +1177,106 @@ const Renderer = (function() {
             });
             chip.appendChild(badge);
           }
-          chip.draggable = true;
-          chip.dataset.id = dish.id;
-          chip.dataset.date = dateStr;
-          chip.addEventListener('click', (e) => {
+
+          // Настройка touch-событий для мобильного перетаскивания
+          let touchDragData = null;
+          let longPressTimer = null;
+          let wasTouchDragged = false;
+          let startX = 0, startY = 0;
+
+          chip.addEventListener('touchstart', (e) => {
+            const touch = e.changedTouches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+            touchDragData = { dishId: dish.id, fromDate: dateStr, chip: chip };
+            wasTouchDragged = false;
+
+            // Запускаем таймер для активации режима перетаскивания
+            longPressTimer = setTimeout(() => {
+              activateTouchDrag(e);
+            }, 300);
+          }, { passive: false });
+
+          const activateTouchDrag = (e) => {
+            if (!touchDragData) return;
+            // Добавляем класс dragging
+            touchDragData.chip.classList.add('dragging');
+            // Блокируем скролл страницы
+            document.body.style.overflow = 'hidden';
+            // Устанавливаем флаг, что началось перетаскивание
+            window.__touchDragActive = true;
+            // Отменяем таймер
+            if (longPressTimer) clearTimeout(longPressTimer);
+          };
+
+          chip.addEventListener('touchmove', (e) => {
+            if (!touchDragData) return;
+            const touch = e.changedTouches[0];
+            const dx = Math.abs(touch.clientX - startX);
+            const dy = Math.abs(touch.clientY - startY);
+            // Если движение достаточно для активации перетаскивания
+            if (!window.__touchDragActive && (dx > 10 || dy > 10)) {
+              if (dx > dy && dx > 10) {
+                // Активируем перетаскивание
+                if (longPressTimer) clearTimeout(longPressTimer);
+                activateTouchDrag(e);
+              } else {
+                // Вертикальное движение - отменяем перетаскивание
+                if (longPressTimer) clearTimeout(longPressTimer);
+                touchDragData = null;
+                return;
+              }
+            }
+
+            if (window.__touchDragActive && touchDragData) {
+              e.preventDefault(); // запрещаем прокрутку
+              // Подсвечиваем целевой день
+              const element = document.elementFromPoint(touch.clientX, touch.clientY);
+              const targetRow = element ? element.closest('.week-row') : null;
+              document.querySelectorAll('.week-row').forEach(r => r.classList.remove('drag-over'));
+              if (targetRow) {
+                targetRow.classList.add('drag-over');
+              }
+              touchDragData.targetRow = targetRow;
+            }
+          }, { passive: false });
+
+          chip.addEventListener('touchend', (e) => {
+            if (longPressTimer) clearTimeout(longPressTimer);
+
+            if (window.__touchDragActive && touchDragData) {
+              e.preventDefault();
+              // Завершаем перетаскивание
+              const targetRow = touchDragData.targetRow;
+              if (targetRow && targetRow.dataset.date && targetRow.dataset.date !== touchDragData.fromDate) {
+                DishStore.updateDishDate(touchDragData.dishId, targetRow.dataset.date);
+                wasTouchDragged = true;
+              }
+              // Очистка
+              document.body.style.overflow = '';
+              window.__touchDragActive = false;
+              touchDragData.chip.classList.remove('dragging');
+              document.querySelectorAll('.week-row').forEach(r => r.classList.remove('drag-over'));
+              touchDragData = null;
+            } else {
+              // Если не было перетаскивания, оставляем как есть (обычный тап)
+            }
+          }, { passive: false });
+
+          // Предотвращаем открытие модалки, если было перетаскивание
+          const originalClickHandler = (e) => {
+            if (wasTouchDragged) {
+              e.preventDefault();
+              e.stopPropagation();
+              wasTouchDragged = false; // сброс
+              return;
+            }
             if (e.target.closest('.recipe-badge')) return;
             if (e.detail > 0) openModal(dateStr);
-          });
+          };
+
+          chip.addEventListener('click', originalClickHandler);
+
           mealsCol.appendChild(chip);
         });
       }
@@ -2447,6 +2544,7 @@ function initShoppingListHandlers() {
     Renderer.setCategoryFilter(this.value);
   });
 
+  // Drag-and-drop для десктопа (HTML5)
   let draggedDishId = null, draggedFromDate = null;
   document.addEventListener('dragstart', function(e) {
     const target = e.target.closest('.meal-chip');
@@ -2754,9 +2852,7 @@ function initShoppingListHandlers() {
     const dx = touchStartX - touchEndX;
     const dy = touchStartY - touchEndY;
 
-    // Проверяем, что свайп горизонтальный (dx преобладает над dy) и достаточно длинный
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
-      // Игнорируем, если свайп начался на интерактивном элементе (например, на блюде)
       const target = e.target;
       if (target.closest('.meal-chip')) return;
 
@@ -2769,28 +2865,6 @@ function initShoppingListHandlers() {
       Renderer.renderCalendar(view, newDate);
     }
   }, { passive: true });
-
-  // Мышиная навигация (для настольных компьютеров)
-  let mouseDown = false, mouseStartX = 0;
-  wrap.addEventListener('mousedown', (e) => {
-    mouseDown = true;
-    mouseStartX = e.screenX;
-  });
-  window.addEventListener('mouseup', (e) => {
-    if (mouseDown) {
-      const diff = mouseStartX - e.screenX;
-      if (Math.abs(diff) > 50) {
-        const curDate = Renderer.getCurrentDate();
-        const view = Renderer.getCurrentView();
-        const newDate = new Date(curDate);
-        if (view === 'month') newDate.setMonth(newDate.getMonth() + (diff > 0 ? 1 : -1));
-        else newDate.setDate(newDate.getDate() + (diff > 0 ? 7 : -7));
-        Renderer.setCurrentDate(newDate);
-        Renderer.renderCalendar(view, newDate);
-      }
-      mouseDown = false;
-    }
-  });
 
   console.log('✅ Планировщик меню готов!');
   console.log('📖 Рецепты сгруппированы по категориям с кнопкой редактирования.');
