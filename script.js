@@ -284,6 +284,64 @@ const EventBus = {
 };
 
 // ============================================================
+// ФУНКЦИЯ ЛОВУШКИ ФОКУСА ДЛЯ МОДАЛОК
+// ============================================================
+let lastFocusedElement = null;
+
+function trapFocus(overlay, closeCallback) {
+  if (!overlay) return;
+
+  // Сохраняем элемент, который был в фокусе до открытия
+  lastFocusedElement = document.activeElement;
+
+  // Находим все фокусируемые элементы внутри оверлея
+  const focusableElements = overlay.querySelectorAll(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  );
+  if (focusableElements.length === 0) {
+    // Если нет фокусируемых элементов, делаем сам оверлей фокусируемым
+    overlay.setAttribute('tabindex', '-1');
+    overlay.focus();
+    return;
+  }
+
+  const firstElement = focusableElements[0];
+  const lastElement = focusableElements[focusableElements.length - 1];
+
+  // Устанавливаем фокус на первый элемент
+  firstElement.focus();
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Tab') {
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement.focus();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
+        }
+      }
+    } else if (e.key === 'Escape') {
+      if (typeof closeCallback === 'function') closeCallback();
+    }
+  };
+
+  overlay.addEventListener('keydown', handleKeyDown);
+
+  // Добавляем метод для очистки слушателя при закрытии (опционально)
+  overlay._trapFocusCleanup = () => {
+    overlay.removeEventListener('keydown', handleKeyDown);
+    if (lastFocusedElement) {
+      lastFocusedElement.focus();
+      lastFocusedElement = null;
+    }
+  };
+}
+
+// ============================================================
 // 3. ХРАНИЛИЩЕ РЕЦЕПТОВ (с категорией)
 // ============================================================
 const RecipeStore = (function() {
@@ -644,12 +702,12 @@ const Renderer = (function() {
     const nameSpan = document.createElement('span');
     nameSpan.className = 'dish-name';
     
-    // Иконка рецепта (📖) теперь слева от названия
     if (dish.recipeId) {
       const recipeLink = document.createElement('span');
       recipeLink.className = 'recipe-link';
       recipeLink.textContent = '📖';
       recipeLink.title = 'Открыть рецепт';
+      recipeLink.setAttribute('aria-label', 'Открыть рецепт');
       recipeLink.addEventListener('click', function(e) {
         e.stopPropagation();
         const recipe = RecipeStore.getById(dish.recipeId);
@@ -678,6 +736,7 @@ const Renderer = (function() {
     editBtn.className = 'action-btn edit-btn';
     editBtn.textContent = '✎';
     editBtn.title = 'Редактировать';
+    editBtn.setAttribute('aria-label', 'Редактировать блюдо');
     editBtn.dataset.id = dish.id;
     editBtn.addEventListener('click', function(e) {
       e.stopPropagation();
@@ -710,7 +769,6 @@ const Renderer = (function() {
         const newNote = noteInput.value.trim();
         if (newName && newName !== currentName) DishStore.editDishName(id, newName);
         if (newNote !== currentNote) DishStore.updateNote(id, newNote);
-        // Событие dishes:changed автоматически обновит календарь и переоткроет модалку дня
       };
       nameInput.addEventListener('blur', saveEdit);
       noteInput.addEventListener('blur', saveEdit);
@@ -731,11 +789,11 @@ const Renderer = (function() {
     likeBtn.className = `action-btn like-btn ${dish.liked ? 'liked' : ''}`;
     likeBtn.textContent = dish.liked ? '❤️' : '🤍';
     likeBtn.title = 'Лайк';
+    likeBtn.setAttribute('aria-label', dish.liked ? 'Убрать из любимых' : 'Добавить в любимые');
     likeBtn.dataset.id = dish.id;
     likeBtn.addEventListener('click', function(e) {
       e.stopPropagation();
       DishStore.toggleLike(Number(this.dataset.id));
-      // Событие dishes:changed обновит интерфейс
     });
     actions.appendChild(likeBtn);
 
@@ -743,11 +801,11 @@ const Renderer = (function() {
     toggleBtn.className = 'action-btn toggle-status-btn';
     toggleBtn.textContent = '🔄';
     toggleBtn.title = 'Переключить статус';
+    toggleBtn.setAttribute('aria-label', 'Переключить статус блюда');
     toggleBtn.dataset.id = dish.id;
     toggleBtn.addEventListener('click', function(e) {
       e.stopPropagation();
       DishStore.toggleStatus(Number(this.dataset.id));
-      // Событие dishes:changed обновит интерфейс
     });
     actions.appendChild(toggleBtn);
 
@@ -755,12 +813,12 @@ const Renderer = (function() {
     deleteBtn.className = 'action-btn delete-btn';
     deleteBtn.textContent = '🗑️';
     deleteBtn.title = 'Удалить';
+    deleteBtn.setAttribute('aria-label', 'Удалить блюдо');
     deleteBtn.dataset.id = dish.id;
     deleteBtn.addEventListener('click', function(e) {
       e.stopPropagation();
       if (confirm('Удалить это блюдо?')) {
         DishStore.removeDish(Number(this.dataset.id));
-        // Событие dishes:changed обновит интерфейс
       }
     });
     actions.appendChild(deleteBtn);
@@ -885,14 +943,13 @@ const Renderer = (function() {
 
     const suggestTitle = document.createElement('h4');
     suggestTitle.textContent = '📖 Выбрать из меню';
-    suggestTitle.classList.add('suggest-title'); // вместо inline margin
+    suggestTitle.classList.add('suggest-title');
     addSection.appendChild(suggestTitle);
 
     const suggestList = document.createElement('div');
     suggestList.className = 'modal-suggest-list';
     addSection.appendChild(suggestList);
 
-    // Функция фильтрации предложений
     function filterSuggestions() {
       const query = searchInput.value.trim().toLowerCase();
       const cat = filterSelect.value;
@@ -909,7 +966,6 @@ const Renderer = (function() {
     searchInput.addEventListener('input', filterSuggestions);
     filterSelect.addEventListener('change', filterSuggestions);
 
-    // Заполнение списка предложений
     function renderSuggestions() {
       const allUnique = DishStore.getAllUniqueWithLastDone();
       const dayDishes = DishStore.getForDate(dateStr);
@@ -926,6 +982,9 @@ const Renderer = (function() {
           const suggestItem = document.createElement('div');
           suggestItem.className = 'modal-suggest-item';
           suggestItem.dataset.name = item.name;
+          suggestItem.setAttribute('tabindex', '0');
+          suggestItem.setAttribute('role', 'button');
+          suggestItem.setAttribute('aria-label', `Добавить блюдо ${item.name}`);
           const existingDish = DishStore.getAll().find(d => d.name === item.name);
           const category = existingDish ? existingDish.category : Utils.guessCategory(item.name);
           suggestItem.dataset.category = category;
@@ -942,13 +1001,19 @@ const Renderer = (function() {
             lastSpan.textContent = 'ещё не готовили';
           }
           suggestItem.appendChild(lastSpan);
-          suggestItem.addEventListener('click', function() {
-            const name = this.dataset.name;
+          const handleSelect = () => {
+            const name = item.name;
             const existing = DishStore.getAll().find(d => d.name === name);
             const category = existing ? existing.category : Utils.guessCategory(name);
             const recipeId = existing ? existing.recipeId : null;
             DishStore.addDish(name, STATUSES.PLANNED, dateStr, category, false, '', recipeId);
-            // Событие dishes:changed обновит интерфейс
+          };
+          suggestItem.addEventListener('click', handleSelect);
+          suggestItem.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleSelect();
+            }
           });
           suggestList.appendChild(suggestItem);
         });
@@ -957,7 +1022,6 @@ const Renderer = (function() {
     }
     renderSuggestions();
 
-    // ---- Автоподстановка названия из рецепта ----
     recipeSelect.addEventListener('change', function() {
       const recipeId = this.value;
       if (recipeId) {
@@ -968,7 +1032,6 @@ const Renderer = (function() {
       }
     });
 
-    // Кнопка "Добавить"
     addBtn.addEventListener('click', function() {
       const name = nameInput.value.trim();
       if (!name) { alert('Введи название блюда'); return; }
@@ -977,7 +1040,6 @@ const Renderer = (function() {
       const note = document.getElementById('modalNewDishNote').value.trim();
       const recipeId = recipeSelect.value ? Number(recipeSelect.value) : null;
       DishStore.addDish(name, status, dateStr, category, false, note, recipeId);
-      // Событие dishes:changed обновит интерфейс
       nameInput.value = '';
       document.getElementById('modalNewDishNote').value = '';
       recipeSelect.value = '';
@@ -986,7 +1048,6 @@ const Renderer = (function() {
     return addSection;
   }
 
-  // --- Основные функции рендерера ---
   function renderCalendar(view, date) {
     currentView = view;
     currentDate = date;
@@ -1029,6 +1090,9 @@ const Renderer = (function() {
       const dateStr = Utils.formatDateLocal(d);
       const cell = document.createElement('div');
       cell.className = 'day-cell';
+      cell.setAttribute('role', 'button');
+      cell.setAttribute('tabindex', '0');
+      cell.setAttribute('aria-label', `Открыть меню на ${Utils.formatDate(d)}`);
       const dayDishes = DishStore.getForDate(dateStr);
       const hasDone = dayDishes.some(d => d.status === STATUSES.DONE);
       const hasPlanned = dayDishes.some(d => d.status === STATUSES.PLANNED);
@@ -1040,7 +1104,14 @@ const Renderer = (function() {
       numDiv.className = 'day-number';
       numDiv.textContent = d.getDate();
       cell.appendChild(numDiv);
-      cell.addEventListener('click', () => openModal(dateStr));
+      const handleOpen = () => openModal(dateStr);
+      cell.addEventListener('click', handleOpen);
+      cell.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleOpen();
+        }
+      });
       grid.appendChild(cell);
     }
     calendarContent.appendChild(grid);
@@ -1063,6 +1134,9 @@ const Renderer = (function() {
       const row = document.createElement('div');
       row.className = 'week-row';
       row.dataset.date = dateStr;
+      row.setAttribute('role', 'button');
+      row.setAttribute('tabindex', '0');
+      row.setAttribute('aria-label', `Открыть меню на ${Utils.formatDate(day)}`);
       const dateCol = document.createElement('div');
       dateCol.className = 'date-col';
       dateCol.textContent = day.getDate();
@@ -1089,6 +1163,7 @@ const Renderer = (function() {
             badge.className = 'recipe-badge';
             badge.textContent = '📖';
             badge.title = 'Открыть рецепт';
+            badge.setAttribute('aria-label', 'Открыть рецепт');
             badge.addEventListener('click', function(e) {
               e.stopPropagation();
               const recipe = RecipeStore.getById(dish.recipeId);
@@ -1107,9 +1182,16 @@ const Renderer = (function() {
         });
       }
       row.appendChild(mealsCol);
+      const handleOpen = () => openModal(dateStr);
       row.addEventListener('click', (e) => {
         if (e.target.closest('.meal-chip')) return;
-        openModal(dateStr);
+        handleOpen();
+      });
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (!e.target.closest('.meal-chip')) handleOpen();
+        }
       });
       list.appendChild(row);
     });
@@ -1186,9 +1268,8 @@ const Renderer = (function() {
     });
   }
 
-  // --- Модалки ---
   function openModal(dateStr) {
-    currentModalDate = dateStr; // запоминаем дату для автообновления
+    currentModalDate = dateStr;
     const d = new Date(dateStr);
     modalDate.textContent = Utils.formatDate(d);
     const dayDishes = DishStore.getForDate(dateStr);
@@ -1214,15 +1295,18 @@ const Renderer = (function() {
     modalContent.appendChild(buildAddForm(dateStr));
 
     modalOverlay.classList.add('active');
-    modalOverlay.focus();
+    trapFocus(modalOverlay, closeModal); // применяем ловушку фокуса
   }
 
   function closeModal() {
     modalOverlay.classList.remove('active');
+    if (modalOverlay._trapFocusCleanup) {
+      modalOverlay._trapFocusCleanup();
+      delete modalOverlay._trapFocusCleanup;
+    }
     currentModalDate = null;
   }
 
-  // --- Приватная функция добавления блюда на завтра ---
   function addDishToTomorrow(name, recipeId = null, closeModalCallback) {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -1246,12 +1330,10 @@ const Renderer = (function() {
     }
 
     DishStore.addDish(name, STATUSES.PLANNED, dateStr, category, false, '', finalRecipeId);
-    // Событие dishes:changed автоматически обновит интерфейс
     if (typeof closeModalCallback === 'function') closeModalCallback();
     alert(`✅ Блюдо "${name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
   }
 
-  // --- Рекомендации с выбором категории ---
   function showCategorySelection() {
     recTitle.textContent = '🍽️ Выберите категорию';
     recContent.innerHTML = '';
@@ -1261,7 +1343,7 @@ const Renderer = (function() {
 
     const desc = document.createElement('p');
     desc.textContent = 'Выберите категорию блюд, которые хотите приготовить:';
-    desc.className = 'rec-category-desc'; // вместо inline margin и color
+    desc.className = 'rec-category-desc';
     container.appendChild(desc);
 
     const categories = [
@@ -1275,7 +1357,6 @@ const Renderer = (function() {
       const btn = document.createElement('button');
       btn.className = 'category-choice-btn';
       btn.textContent = cat.label;
-      // Никаких inline-стилей, hover-эффект уже в CSS
       btn.addEventListener('click', () => {
         showRecommendationsForCategory(cat.key);
       });
@@ -1292,7 +1373,7 @@ const Renderer = (function() {
 
     recContent.appendChild(container);
     recOverlay.classList.add('active');
-    recOverlay.focus();
+    trapFocus(recOverlay, closeRecModal);
   }
 
   function showRecommendationsForCategory(category) {
@@ -1334,6 +1415,9 @@ const Renderer = (function() {
           const row = document.createElement('div');
           row.className = 'rec-item';
           row.dataset.name = item.name;
+          row.setAttribute('tabindex', '0');
+          row.setAttribute('role', 'button');
+          row.setAttribute('aria-label', `Добавить блюдо ${item.name} на завтра`);
           const nameSpan = document.createElement('span');
           nameSpan.className = 'rec-name';
           nameSpan.textContent = item.name;
@@ -1342,9 +1426,15 @@ const Renderer = (function() {
           daysSpan.className = 'rec-days';
           daysSpan.textContent = `последний раз ${Utils.daysAgo(item.lastDate)}`;
           row.appendChild(daysSpan);
-          row.addEventListener('click', function() {
-            const name = this.dataset.name;
-            addDishToTomorrow(name, null, () => recOverlay.classList.remove('active'));
+          const handleSelect = () => {
+            addDishToTomorrow(item.name, null, () => recOverlay.classList.remove('active'));
+          };
+          row.addEventListener('click', handleSelect);
+          row.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleSelect();
+            }
           });
           section.appendChild(row);
         });
@@ -1360,6 +1450,9 @@ const Renderer = (function() {
           const row = document.createElement('div');
           row.className = 'rec-item';
           row.dataset.name = item.name;
+          row.setAttribute('tabindex', '0');
+          row.setAttribute('role', 'button');
+          row.setAttribute('aria-label', `Добавить блюдо ${item.name} на завтра`);
           const nameSpan = document.createElement('span');
           nameSpan.className = 'rec-name';
           nameSpan.textContent = item.name;
@@ -1368,9 +1461,15 @@ const Renderer = (function() {
           daysSpan.className = 'rec-days';
           daysSpan.textContent = `последний раз ${Utils.daysAgo(item.lastDate)}`;
           row.appendChild(daysSpan);
-          row.addEventListener('click', function() {
-            const name = this.dataset.name;
-            addDishToTomorrow(name, null, () => recOverlay.classList.remove('active'));
+          const handleSelect = () => {
+            addDishToTomorrow(item.name, null, () => recOverlay.classList.remove('active'));
+          };
+          row.addEventListener('click', handleSelect);
+          row.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleSelect();
+            }
           });
           section.appendChild(row);
         });
@@ -1391,10 +1490,9 @@ const Renderer = (function() {
     recContent.appendChild(backBtn);
 
     recOverlay.classList.add('active');
-    recOverlay.focus();
+    trapFocus(recOverlay, closeRecModal);
   }
 
-  // --- Любимые ---
   function openFavorites() {
     recTitle.textContent = '❤️ Любимые блюда';
     const favs = DishStore.getFavorites();
@@ -1421,6 +1519,9 @@ const Renderer = (function() {
         row.className = 'rec-item';
         row.dataset.id = item.id;
         row.dataset.name = item.name;
+        row.setAttribute('tabindex', '0');
+        row.setAttribute('role', 'button');
+        row.setAttribute('aria-label', `Добавить ${item.name} на завтра`);
         const nameSpan = document.createElement('span');
         nameSpan.className = 'rec-name';
         nameSpan.textContent = '❤️ ' + item.name;
@@ -1433,11 +1534,21 @@ const Renderer = (function() {
         removeBtn.className = 'rec-remove';
         removeBtn.textContent = '✕';
         removeBtn.title = 'Убрать из любимых';
+        removeBtn.setAttribute('aria-label', `Убрать ${item.name} из любимых`);
         row.appendChild(removeBtn);
+        const handleAdd = () => {
+          addDishToTomorrow(item.name, null, () => recOverlay.classList.remove('active'));
+        };
         row.addEventListener('click', function(e) {
           if (e.target === removeBtn) return;
-          const name = this.dataset.name;
-          addDishToTomorrow(name, null, () => recOverlay.classList.remove('active'));
+          handleAdd();
+        });
+        row.addEventListener('keydown', (e) => {
+          if (e.target === removeBtn) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleAdd();
+          }
         });
         removeBtn.addEventListener('click', function(e) {
           e.stopPropagation();
@@ -1445,9 +1556,7 @@ const Renderer = (function() {
           const dish = DishStore.getAll().find(d => d.id === id);
           if (dish) {
             DishStore.toggleLike(id);
-            // Событие dishes:changed обновит интерфейс (календарь и, возможно, модалку)
-            openFavorites(); // но для обновления списка любимых нужно перерисовать его
-            // Лучше подписаться на событие и перерисовывать открытую модалку любимых, но пока вызовем вручную
+            openFavorites();
           }
         });
         section.appendChild(row);
@@ -1459,11 +1568,15 @@ const Renderer = (function() {
       recContent.appendChild(hint);
     }
     recOverlay.classList.add('active');
-    recOverlay.focus();
+    trapFocus(recOverlay, closeRecModal);
   }
 
   function closeRecModal() {
     recOverlay.classList.remove('active');
+    if (recOverlay._trapFocusCleanup) {
+      recOverlay._trapFocusCleanup();
+      delete recOverlay._trapFocusCleanup;
+    }
   }
 
   function openAddModal() {
@@ -1474,32 +1587,36 @@ const Renderer = (function() {
     document.getElementById(CONSTANTS.SELECTORS.newDishNote).value = '';
     document.getElementById(CONSTANTS.SELECTORS.newDishStatus).value = STATUSES.PLANNED;
     document.getElementById(CONSTANTS.SELECTORS.newDishCategory).value = CATEGORIES.MAIN;
-    document.getElementById(CONSTANTS.SELECTORS.addModalOverlay).classList.add('active');
-    document.getElementById(CONSTANTS.SELECTORS.addModalOverlay).focus();
+    const overlay = document.getElementById(CONSTANTS.SELECTORS.addModalOverlay);
+    overlay.classList.add('active');
+    trapFocus(overlay, closeAddModal);
   }
 
   function closeAddModal() {
-    document.getElementById(CONSTANTS.SELECTORS.addModalOverlay).classList.remove('active');
+    const overlay = document.getElementById(CONSTANTS.SELECTORS.addModalOverlay);
+    overlay.classList.remove('active');
+    if (overlay._trapFocusCleanup) {
+      overlay._trapFocusCleanup();
+      delete overlay._trapFocusCleanup;
+    }
   }
 
   function setSearchQuery(q) { searchQuery = q; renderMenu(); }
   function setStatusFilter(f) { statusFilter = f; renderMenu(); }
   function setCategoryFilter(f) { categoryFilter = f; renderMenu(); }
 
-  // --- Показ карточки рецепта (исправлено для тёмной темы, XSS-безопасно) ---
   function showRecipeCard(recipe) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay active';
-    overlay.style.display = 'flex'; // это допустимо, но лучше класс .active уже задаёт display:flex
+    overlay.style.display = 'flex';
     const modal = document.createElement('div');
     modal.className = 'modal recipe-view-modal';
-    modal.classList.add('recipe-view-modal'); // дополнительный класс для max-width
+    modal.classList.add('recipe-view-modal');
 
-    // Заголовок
     const header = document.createElement('div');
     header.className = 'modal-header';
     const title = document.createElement('h3');
-    title.textContent = '📖 ' + recipe.name; // textContent безопасен
+    title.textContent = '📖 ' + recipe.name;
     const closeButton = document.createElement('button');
     closeButton.className = 'modal-close';
     closeButton.id = 'recipeCardClose';
@@ -1509,9 +1626,8 @@ const Renderer = (function() {
     header.appendChild(closeButton);
     modal.appendChild(header);
 
-    // Ингредиенты
     const ingredientsDiv = document.createElement('div');
-    ingredientsDiv.classList.add('recipe-ingredients'); // класс для стилей
+    ingredientsDiv.classList.add('recipe-ingredients');
     const ingredientsLabel = document.createElement('strong');
     ingredientsLabel.textContent = 'Ингредиенты:';
     ingredientsDiv.appendChild(ingredientsLabel);
@@ -1525,7 +1641,6 @@ const Renderer = (function() {
     ingredientsDiv.appendChild(ingredientsList);
     modal.appendChild(ingredientsDiv);
 
-    // Инструкция (если есть)
     if (recipe.instructions) {
       const instrDiv = document.createElement('div');
       instrDiv.className = 'recipe-instructions';
@@ -1539,7 +1654,6 @@ const Renderer = (function() {
       modal.appendChild(instrDiv);
     }
 
-    // Кнопки
     const buttonsDiv = document.createElement('div');
     buttonsDiv.className = 'recipe-card-buttons';
     const addButton = document.createElement('button');
@@ -1557,38 +1671,38 @@ const Renderer = (function() {
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
-    const close = () => overlay.remove();
+    const close = () => {
+      overlay.remove();
+      if (lastFocusedElement) {
+        lastFocusedElement.focus();
+        lastFocusedElement = null;
+      }
+    };
     closeButton.addEventListener('click', close);
     closeButton2.addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-
     addButton.addEventListener('click', function() {
       addDishToTomorrow(recipe.name, recipe.id, close);
     });
+
+    trapFocus(overlay, close);
   }
 
-  // --- Автоматическое обновление при изменении данных ---
   function initEventListeners() {
     EventBus.on(CONSTANTS.EVENTS.DISHES_CHANGED, () => {
       renderCalendar(currentView, currentDate);
-      // Если открыта модалка дня, переоткрываем её для обновления содержимого
       if (modalOverlay.classList.contains('active') && currentModalDate) {
         openModal(currentModalDate);
       }
-      // Если открыты рекомендации или любимые, их нужно перерисовать?
-      // Пока оставим как есть, можно добавить позже
     });
     EventBus.on(CONSTANTS.EVENTS.RECIPES_CHANGED, () => {
-      // Обновление списка рецептов, если он открыт
       const recipesOverlay = document.getElementById(CONSTANTS.SELECTORS.recipesOverlay);
       if (recipesOverlay && recipesOverlay.classList.contains('active')) {
         renderRecipesList();
       }
-      // Также можно обновить селекты рецептов в открытых модалках, но пока пропустим
     });
   }
 
-  // Инициализация слушателей событий
   initEventListeners();
 
   return {
@@ -1773,9 +1887,9 @@ function importData(file) {
       if (confirm(`Будет импортировано ${dishes.length} блюд и ${recipes ? recipes.length : 0} рецептов. Текущие данные будут заменены. Продолжить?`)) {
         if (recipes) {
           localStorage.setItem(CONSTANTS.STORAGE_KEYS.RECIPES, JSON.stringify(recipes));
-          RecipeStore.init(); // вызовет событие recipes:changed
+          RecipeStore.init();
         }
-        DishStore.replaceAll(dishes); // вызовет событие dishes:changed
+        DishStore.replaceAll(dishes);
         alert('✅ Данные успешно импортированы!');
       }
     } catch (err) {
@@ -1788,8 +1902,6 @@ function importData(file) {
 // ============================================================
 // 8. ФУНКЦИИ ДЛЯ РЕЦЕПТОВ И СПИСКА ПОКУПОК
 // ============================================================
-
-// --- Отделы магазина ---
 const DEPARTMENTS = {
   'Овощи': ['лук', 'морковь', 'картофель', 'капуста', 'свекла', 'редис', 'репа', 'огурец', 'помидор', 'перец', 'баклажан', 'кабачок', 'тыква', 'чеснок', 'зелень', 'петрушка', 'укроп', 'базилик', 'кинза', 'салат', 'шпинат', 'щавель', 'ревень', 'сельдерей'],
   'Фрукты, ягоды': ['яблоко', 'груша', 'айва', 'хурма', 'гранат', 'лимон', 'лайм', 'грейпфрут', 'мандарин', 'апельсин', 'клубника', 'малина', 'черника', 'ежевика', 'смородина', 'крыжовник', 'вишня', 'черешня', 'слива', 'абрикос', 'персик', 'нектарин', 'банан', 'киви', 'манго', 'ананас', 'арбуз', 'дыня', 'финик', 'инжир', 'курага', 'чернослив', 'изюм'],
@@ -1815,14 +1927,20 @@ function classifyIngredient(ingredient) {
   return 'Прочее';
 }
 
-// --- Рецепты (с категориями и группировкой) ---
 function openRecipesModal() {
-  document.getElementById(CONSTANTS.SELECTORS.recipesOverlay).classList.add('active');
+  const overlay = document.getElementById(CONSTANTS.SELECTORS.recipesOverlay);
+  overlay.classList.add('active');
   renderRecipesList();
+  trapFocus(overlay, closeRecipesModal);
 }
 
 function closeRecipesModal() {
-  document.getElementById(CONSTANTS.SELECTORS.recipesOverlay).classList.remove('active');
+  const overlay = document.getElementById(CONSTANTS.SELECTORS.recipesOverlay);
+  overlay.classList.remove('active');
+  if (overlay._trapFocusCleanup) {
+    overlay._trapFocusCleanup();
+    delete overlay._trapFocusCleanup;
+  }
 }
 
 function renderRecipesList() {
@@ -1865,8 +1983,17 @@ function renderRecipesList() {
       const nameSpan = document.createElement('span');
       nameSpan.textContent = recipe.name;
       nameSpan.className = 'recipe-name-clickable';
+      nameSpan.setAttribute('tabindex', '0');
+      nameSpan.setAttribute('role', 'button');
+      nameSpan.setAttribute('aria-label', `Открыть рецепт ${recipe.name}`);
       nameSpan.addEventListener('click', () => {
         Renderer.showRecipeCard(recipe);
+      });
+      nameSpan.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          Renderer.showRecipeCard(recipe);
+        }
       });
       li.appendChild(nameSpan);
 
@@ -1874,6 +2001,7 @@ function renderRecipesList() {
       editBtn.textContent = '✎';
       editBtn.className = 'recipe-edit-btn';
       editBtn.title = 'Редактировать рецепт';
+      editBtn.setAttribute('aria-label', `Редактировать рецепт ${recipe.name}`);
       editBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         openRecipeForm(recipe.id);
@@ -1914,10 +2042,16 @@ function openRecipeForm(recipeId = null) {
     document.getElementById(CONSTANTS.SELECTORS.recipeFormTitle).textContent = '📝 Новый рецепт';
   }
   overlay.classList.add('active');
+  trapFocus(overlay, closeRecipeForm);
 }
 
 function closeRecipeForm() {
-  document.getElementById(CONSTANTS.SELECTORS.recipeFormOverlay).classList.remove('active');
+  const overlay = document.getElementById(CONSTANTS.SELECTORS.recipeFormOverlay);
+  overlay.classList.remove('active');
+  if (overlay._trapFocusCleanup) {
+    overlay._trapFocusCleanup();
+    delete overlay._trapFocusCleanup;
+  }
 }
 
 function saveRecipeForm() {
@@ -1936,7 +2070,7 @@ function saveRecipeForm() {
     RecipeStore.add(name, ingredients, instructions, category);
   }
   closeRecipeForm();
-  renderRecipesList(); // можно оставить, так как событие recipes:changed уже обновит
+  renderRecipesList();
 }
 
 function parseRecipeTextFromForm() {
@@ -1954,7 +2088,6 @@ function parseRecipeTextFromForm() {
   }
 }
 
-// --- Список покупок ---
 function getSavedShoppingListKeys() {
   const keys = [];
   for (let i = 0; i < localStorage.length; i++) {
@@ -1967,7 +2100,8 @@ function getSavedShoppingListKeys() {
 }
 
 function openShoppingList() {
-  document.getElementById(CONSTANTS.SELECTORS.shoppingListOverlay).classList.add('active');
+  const overlay = document.getElementById(CONSTANTS.SELECTORS.shoppingListOverlay);
+  overlay.classList.add('active');
   document.getElementById(CONSTANTS.SELECTORS.shoppingListDisplay).style.display = 'none';
   document.getElementById(CONSTANTS.SELECTORS.savedListsContainer).style.display = 'block';
   renderSavedLists();
@@ -1976,10 +2110,16 @@ function openShoppingList() {
   tomorrow.setDate(tomorrow.getDate() + 1);
   document.getElementById(CONSTANTS.SELECTORS.shoppingDateFrom).value = Utils.formatDateLocal(today);
   document.getElementById(CONSTANTS.SELECTORS.shoppingDateTo).value = Utils.formatDateLocal(tomorrow);
+  trapFocus(overlay, closeShoppingList);
 }
 
 function closeShoppingList() {
-  document.getElementById(CONSTANTS.SELECTORS.shoppingListOverlay).classList.remove('active');
+  const overlay = document.getElementById(CONSTANTS.SELECTORS.shoppingListOverlay);
+  overlay.classList.remove('active');
+  if (overlay._trapFocusCleanup) {
+    overlay._trapFocusCleanup();
+    delete overlay._trapFocusCleanup;
+  }
 }
 
 function renderSavedLists() {
@@ -2019,6 +2159,7 @@ function renderSavedLists() {
     deleteBtn.className = 'list-delete';
     deleteBtn.textContent = '✕';
     deleteBtn.title = 'Удалить список';
+    deleteBtn.setAttribute('aria-label', `Удалить список ${label}`);
     deleteBtn.addEventListener('click', function(e) {
       e.stopPropagation();
       if (confirm(`Удалить список "${label}"?`)) {
@@ -2258,19 +2399,23 @@ function initShoppingListHandlers() {
 // 9. ИНИЦИАЛИЗАЦИЯ
 // ============================================================
 (function init() {
-  RecipeStore.init(); // вызовет событие recipes:changed, но подписка уже установлена
-  DishStore.init(); // аналогично
+  RecipeStore.init();
+  DishStore.init();
 
   function showWelcome() {
     const overlay = document.getElementById(CONSTANTS.SELECTORS.welcomeOverlay);
     overlay.classList.add('active');
     document.body.style.overflow = 'hidden';
-    overlay.focus();
+    trapFocus(overlay, hideWelcome);
   }
   function hideWelcome() {
     const overlay = document.getElementById(CONSTANTS.SELECTORS.welcomeOverlay);
     overlay.classList.remove('active');
     document.body.style.overflow = '';
+    if (overlay._trapFocusCleanup) {
+      overlay._trapFocusCleanup();
+      delete overlay._trapFocusCleanup;
+    }
   }
 
   setTimeout(showWelcome, 300);
@@ -2332,16 +2477,14 @@ function initShoppingListHandlers() {
       draggedDishId = null; draggedFromDate = null;
       return;
     }
-    // Исправление: используем метод DishStore вместо прямого обращения к localStorage
     DishStore.updateDishDate(draggedDishId, targetDate);
-    // Событие dishes:changed автоматически обновит календарь
     draggedDishId = null; draggedFromDate = null;
   });
 
   const now = new Date();
   Renderer.setCurrentDate(now);
   Renderer.setCurrentView('month');
-  Renderer.renderCalendar('month', now); // первоначальная отрисовка
+  Renderer.renderCalendar('month', now);
 
   document.getElementById(CONSTANTS.SELECTORS.prevMonth).addEventListener('click', function() {
     const curDate = Renderer.getCurrentDate();
@@ -2383,8 +2526,24 @@ function initShoppingListHandlers() {
     { overlay: document.getElementById(CONSTANTS.SELECTORS.modalOverlay), close: Renderer.closeModal },
     { overlay: document.getElementById(CONSTANTS.SELECTORS.recOverlay), close: Renderer.closeRecModal },
     { overlay: document.getElementById(CONSTANTS.SELECTORS.addModalOverlay), close: Renderer.closeAddModal },
-    { overlay: document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay), close: () => document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay).classList.remove('active') },
-    { overlay: document.getElementById(CONSTANTS.SELECTORS.choiceOverlay), close: () => document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.remove('active') },
+    { overlay: document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay), close: () => {
+        const overlay = document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay);
+        overlay.classList.remove('active');
+        if (overlay._trapFocusCleanup) {
+          overlay._trapFocusCleanup();
+          delete overlay._trapFocusCleanup;
+        }
+      }
+    },
+    { overlay: document.getElementById(CONSTANTS.SELECTORS.choiceOverlay), close: () => {
+        const overlay = document.getElementById(CONSTANTS.SELECTORS.choiceOverlay);
+        overlay.classList.remove('active');
+        if (overlay._trapFocusCleanup) {
+          overlay._trapFocusCleanup();
+          delete overlay._trapFocusCleanup;
+        }
+      }
+    },
     { overlay: document.getElementById(CONSTANTS.SELECTORS.welcomeOverlay), close: hideWelcome },
     { overlay: document.getElementById(CONSTANTS.SELECTORS.recipesOverlay), close: closeRecipesModal },
     { overlay: document.getElementById(CONSTANTS.SELECTORS.recipeFormOverlay), close: closeRecipeForm },
@@ -2409,8 +2568,22 @@ function initShoppingListHandlers() {
         if (id === CONSTANTS.SELECTORS.modalOverlay) Renderer.closeModal();
         else if (id === CONSTANTS.SELECTORS.recOverlay) Renderer.closeRecModal();
         else if (id === CONSTANTS.SELECTORS.addModalOverlay) Renderer.closeAddModal();
-        else if (id === CONSTANTS.SELECTORS.exportModalOverlay) document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay).classList.remove('active');
-        else if (id === CONSTANTS.SELECTORS.choiceOverlay) document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.remove('active');
+        else if (id === CONSTANTS.SELECTORS.exportModalOverlay) {
+          const overlay = document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay);
+          overlay.classList.remove('active');
+          if (overlay._trapFocusCleanup) {
+            overlay._trapFocusCleanup();
+            delete overlay._trapFocusCleanup;
+          }
+        }
+        else if (id === CONSTANTS.SELECTORS.choiceOverlay) {
+          const overlay = document.getElementById(CONSTANTS.SELECTORS.choiceOverlay);
+          overlay.classList.remove('active');
+          if (overlay._trapFocusCleanup) {
+            overlay._trapFocusCleanup();
+            delete overlay._trapFocusCleanup;
+          }
+        }
         else if (id === CONSTANTS.SELECTORS.welcomeOverlay) hideWelcome();
         else if (id === CONSTANTS.SELECTORS.recipesOverlay) closeRecipesModal();
         else if (id === CONSTANTS.SELECTORS.recipeFormOverlay) closeRecipeForm();
@@ -2423,23 +2596,53 @@ function initShoppingListHandlers() {
   document.getElementById(CONSTANTS.SELECTORS.recClose).addEventListener('click', Renderer.closeRecModal);
   document.getElementById(CONSTANTS.SELECTORS.addModalClose).addEventListener('click', Renderer.closeAddModal);
   document.getElementById(CONSTANTS.SELECTORS.addModalCancel).addEventListener('click', Renderer.closeAddModal);
-  document.getElementById(CONSTANTS.SELECTORS.exportModalClose).addEventListener('click', () => document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay).classList.remove('active'));
+  document.getElementById(CONSTANTS.SELECTORS.exportModalClose).addEventListener('click', () => {
+    const overlay = document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay);
+    overlay.classList.remove('active');
+    if (overlay._trapFocusCleanup) {
+      overlay._trapFocusCleanup();
+      delete overlay._trapFocusCleanup;
+    }
+  });
   document.getElementById(CONSTANTS.SELECTORS.recipesClose).addEventListener('click', closeRecipesModal);
   document.getElementById(CONSTANTS.SELECTORS.recipeFormClose).addEventListener('click', closeRecipeForm);
   document.getElementById(CONSTANTS.SELECTORS.shoppingListClose).addEventListener('click', closeShoppingList);
 
   document.getElementById(CONSTANTS.SELECTORS.suggestBtn).addEventListener('click', function() {
-    document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.add('active');
+    const overlay = document.getElementById(CONSTANTS.SELECTORS.choiceOverlay);
+    overlay.classList.add('active');
+    trapFocus(overlay, () => {
+      overlay.classList.remove('active');
+      if (overlay._trapFocusCleanup) {
+        overlay._trapFocusCleanup();
+        delete overlay._trapFocusCleanup;
+      }
+    });
   });
   document.getElementById(CONSTANTS.SELECTORS.choiceClose).addEventListener('click', function() {
-    document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.remove('active');
+    const overlay = document.getElementById(CONSTANTS.SELECTORS.choiceOverlay);
+    overlay.classList.remove('active');
+    if (overlay._trapFocusCleanup) {
+      overlay._trapFocusCleanup();
+      delete overlay._trapFocusCleanup;
+    }
   });
   document.getElementById(CONSTANTS.SELECTORS.choiceFromMenu).addEventListener('click', function() {
-    document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.remove('active');
+    const overlay = document.getElementById(CONSTANTS.SELECTORS.choiceOverlay);
+    overlay.classList.remove('active');
+    if (overlay._trapFocusCleanup) {
+      overlay._trapFocusCleanup();
+      delete overlay._trapFocusCleanup;
+    }
     Renderer.showCategorySelection();
   });
   document.getElementById(CONSTANTS.SELECTORS.choiceFromTaste).addEventListener('click', function() {
-    document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.remove('active');
+    const overlay = document.getElementById(CONSTANTS.SELECTORS.choiceOverlay);
+    overlay.classList.remove('active');
+    if (overlay._trapFocusCleanup) {
+      overlay._trapFocusCleanup();
+      delete overlay._trapFocusCleanup;
+    }
     const random = DishStore.getRandomDishFromTaste();
     const answer = `🍽️ ${random.categoryLabel}\n\n${random.name}\n\nХотите добавить его в план на завтра?`;
     if (confirm(answer)) {
@@ -2447,12 +2650,16 @@ function initShoppingListHandlers() {
       tomorrow.setDate(tomorrow.getDate() + 1);
       const dateStr = Utils.formatDateLocal(tomorrow);
       DishStore.addDish(random.name, STATUSES.PLANNED, dateStr, random.category, false, '');
-      // Событие dishes:changed автоматически обновит интерфейс
       alert(`✅ Блюдо "${random.name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
     }
   });
   document.getElementById(CONSTANTS.SELECTORS.choiceFromRecipes).addEventListener('click', function() {
-    document.getElementById(CONSTANTS.SELECTORS.choiceOverlay).classList.remove('active');
+    const overlay = document.getElementById(CONSTANTS.SELECTORS.choiceOverlay);
+    overlay.classList.remove('active');
+    if (overlay._trapFocusCleanup) {
+      overlay._trapFocusCleanup();
+      delete overlay._trapFocusCleanup;
+    }
     openRecipesModal();
   });
 
@@ -2478,18 +2685,30 @@ function initShoppingListHandlers() {
     const note = noteInput.value.trim();
     DishStore.addDish(name, statusSelect.value, date, categorySelect.value, false, note);
     Renderer.closeAddModal();
-    // Событие dishes:changed автоматически обновит календарь
     nameInput.value = '';
     noteInput.value = '';
   });
 
   document.getElementById(CONSTANTS.SELECTORS.exportBtn).addEventListener('click', function() {
-    document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay).classList.add('active');
+    const overlay = document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay);
+    overlay.classList.add('active');
+    trapFocus(overlay, () => {
+      overlay.classList.remove('active');
+      if (overlay._trapFocusCleanup) {
+        overlay._trapFocusCleanup();
+        delete overlay._trapFocusCleanup;
+      }
+    });
   });
   document.querySelectorAll(CONSTANTS.SELECTORS.exportOptions).forEach(btn => {
     btn.addEventListener('click', function() {
       const format = this.dataset.format;
-      document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay).classList.remove('active');
+      const overlay = document.getElementById(CONSTANTS.SELECTORS.exportModalOverlay);
+      overlay.classList.remove('active');
+      if (overlay._trapFocusCleanup) {
+        overlay._trapFocusCleanup();
+        delete overlay._trapFocusCleanup;
+      }
       exportData(format);
     });
   });
