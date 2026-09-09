@@ -256,7 +256,6 @@ const Utils = {
     return { title, ingredients: ingredients.join('\n') };
   },
 
-  // Новая функция debounce
   debounce(func, delay = 300) {
     let timeoutId;
     return function(...args) {
@@ -965,7 +964,6 @@ const Renderer = (function() {
       });
     }
 
-    // Применяем debounce для поля поиска предложений
     const debouncedFilterSuggestions = Utils.debounce(filterSuggestions, 200);
     searchInput.addEventListener('input', debouncedFilterSuggestions);
     filterSelect.addEventListener('change', filterSuggestions);
@@ -2436,7 +2434,6 @@ function initShoppingListHandlers() {
     localStorage.setItem(CONSTANTS.STORAGE_KEYS.THEME, document.body.classList.contains('dark-theme') ? 'dark' : 'light');
   });
 
-  // Применяем debounce для поля поиска
   const searchInput = document.getElementById(CONSTANTS.SELECTORS.searchInput);
   const debouncedSetSearchQuery = Utils.debounce(function() {
     Renderer.setSearchQuery(this.value);
@@ -2740,25 +2737,40 @@ function initShoppingListHandlers() {
 
   initShoppingListHandlers();
 
-  let touchStartX = 0, touchEndX = 0;
+  // ===== УЛУЧШЕННАЯ ОБРАБОТКА СВАЙПОВ (ПУНКТ 3.5) =====
+  let touchStartX = 0, touchStartY = 0;
   const wrap = document.getElementById(CONSTANTS.SELECTORS.calendarWrap);
+
   wrap.addEventListener('touchstart', (e) => {
-    touchStartX = e.changedTouches[0].screenX;
+    const touch = e.changedTouches[0];
+    touchStartX = touch.screenX;
+    touchStartY = touch.screenY;
   }, { passive: true });
+
   wrap.addEventListener('touchend', (e) => {
-    touchEndX = e.changedTouches[0].screenX;
-    const diff = touchStartX - touchEndX;
-    if (Math.abs(diff) > 50) {
+    const touch = e.changedTouches[0];
+    const touchEndX = touch.screenX;
+    const touchEndY = touch.screenY;
+    const dx = touchStartX - touchEndX;
+    const dy = touchStartY - touchEndY;
+
+    // Проверяем, что свайп горизонтальный (dx преобладает над dy) и достаточно длинный
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      // Игнорируем, если свайп начался на интерактивном элементе (например, на блюде)
+      const target = e.target;
+      if (target.closest('.meal-chip')) return;
+
       const curDate = Renderer.getCurrentDate();
       const view = Renderer.getCurrentView();
       const newDate = new Date(curDate);
-      if (view === 'month') newDate.setMonth(newDate.getMonth() + (diff > 0 ? 1 : -1));
-      else newDate.setDate(newDate.getDate() + (diff > 0 ? 7 : -7));
+      if (view === 'month') newDate.setMonth(newDate.getMonth() + (dx > 0 ? 1 : -1));
+      else newDate.setDate(newDate.getDate() + (dx > 0 ? 7 : -7));
       Renderer.setCurrentDate(newDate);
       Renderer.renderCalendar(view, newDate);
     }
   }, { passive: true });
 
+  // Мышиная навигация (для настольных компьютеров)
   let mouseDown = false, mouseStartX = 0;
   wrap.addEventListener('mousedown', (e) => {
     mouseDown = true;
