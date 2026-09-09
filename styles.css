@@ -2023,3 +2023,7 @@ body.dark-theme #savedListsContainer h4 {
 .suggest-title {
   margin-top: 12px;
 }
+
+.meal-chip {
+  touch-action: none; /* отключаем стандартное поведение браузера для чипов */
+}
