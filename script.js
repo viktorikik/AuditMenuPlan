@@ -268,10 +268,26 @@ const Utils = {
 };
 
 // ============================================================
-// ГЛОБАЛЬНАЯ ФУНКЦИЯ ОШИБКИ ХРАНИЛИЩА
+// ГЛОБАЛЬНЫЕ ФУНКЦИИ УВЕДОМЛЕНИЙ
 // ============================================================
 function showStorageError(action) {
-  alert(`⚠️ Не удалось сохранить данные (${action}). Проверьте доступность localStorage и переполнение хранилища.`);
+  showMessage(`⚠️ Не удалось сохранить данные (${action}). Проверьте доступность localStorage и переполнение хранилища.`, 'error');
+}
+
+function showMessage(message, type = 'info') {
+  const liveRegion = document.getElementById('liveRegion');
+  if (!liveRegion) return;
+  
+  liveRegion.textContent = '';
+  setTimeout(() => {
+    liveRegion.textContent = message;
+  }, 50);
+  
+  setTimeout(() => {
+    if (liveRegion.textContent === message) {
+      liveRegion.textContent = '';
+    }
+  }, 3000);
 }
 
 // ============================================================
@@ -716,7 +732,7 @@ const Renderer = (function() {
         if (recipe) {
           showRecipeCard(recipe);
         } else {
-          alert('Рецепт не найден');
+          showMessage('Рецепт не найден', 'error');
         }
       });
       nameSpan.appendChild(recipeLink);
@@ -1036,7 +1052,7 @@ const Renderer = (function() {
 
     addBtn.addEventListener('click', function() {
       const name = nameInput.value.trim();
-      if (!name) { alert('Введи название блюда'); return; }
+      if (!name) { showMessage('Введи название блюда', 'error'); return; }
       const status = statusSelect.value;
       const category = categorySelect.value;
       const note = document.getElementById('modalNewDishNote').value.trim();
@@ -1106,6 +1122,13 @@ const Renderer = (function() {
       numDiv.className = 'day-number';
       numDiv.textContent = d.getDate();
       cell.appendChild(numDiv);
+      
+      // Скрытый текст со статусами для скринридеров
+      const statusText = document.createElement('span');
+      statusText.className = 'sr-only';
+      statusText.textContent = dayDishes.map(d => d.status === STATUSES.DONE ? 'Готовила' : 'Планирую').join(', ');
+      cell.appendChild(statusText);
+      
       const handleOpen = () => openModal(dateStr);
       cell.addEventListener('click', handleOpen);
       cell.addEventListener('keydown', (e) => {
@@ -1430,7 +1453,7 @@ const Renderer = (function() {
 
     DishStore.addDish(name, STATUSES.PLANNED, dateStr, category, false, '', finalRecipeId);
     if (typeof closeModalCallback === 'function') closeModalCallback();
-    alert(`✅ Блюдо "${name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
+    showMessage(`✅ Блюдо "${name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
   }
 
   function showCategorySelection() {
@@ -1708,6 +1731,10 @@ const Renderer = (function() {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay active';
     overlay.style.display = 'flex';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'recipeCardTitle');
+    
     const modal = document.createElement('div');
     modal.className = 'modal recipe-view-modal';
     modal.classList.add('recipe-view-modal');
@@ -1715,6 +1742,7 @@ const Renderer = (function() {
     const header = document.createElement('div');
     header.className = 'modal-header';
     const title = document.createElement('h3');
+    title.id = 'recipeCardTitle';
     title.textContent = '📖 ' + recipe.name;
     const closeButton = document.createElement('button');
     closeButton.className = 'modal-close';
@@ -1771,6 +1799,10 @@ const Renderer = (function() {
     document.body.appendChild(overlay);
 
     const close = () => {
+      if (overlay._trapFocusCleanup) {
+        overlay._trapFocusCleanup();
+        delete overlay._trapFocusCleanup;
+      }
       overlay.remove();
       if (lastFocusedElement) {
         lastFocusedElement.focus();
@@ -1850,7 +1882,7 @@ function validateRecipe(recipe, index) {
 // ============================================================
 function exportData(format) {
   const data = DishStore.getAll();
-  if (!data.length) { alert('Нет данных для экспорта.'); return; }
+  if (!data.length) { showMessage('Нет данных для экспорта.'); return; }
 
   if (format === 'json') {
     const json = JSON.stringify({ dishes: data, recipes: RecipeStore.getAll() }, null, 2);
@@ -1951,17 +1983,17 @@ function importData(file) {
     try {
       const parsed = JSON.parse(e.target.result);
       if (!parsed || typeof parsed !== 'object') {
-        alert('Некорректный файл: ожидается объект.');
+        showMessage('Некорректный файл: ожидается объект.', 'error');
         return;
       }
       const dishes = parsed.dishes;
       const recipes = parsed.recipes;
       if (dishes && !Array.isArray(dishes)) {
-        alert('Поле dishes должно быть массивом.');
+        showMessage('Поле dishes должно быть массивом.', 'error');
         return;
       }
       if (recipes && !Array.isArray(recipes)) {
-        alert('Поле recipes должно быть массивом.');
+        showMessage('Поле recipes должно быть массивом.', 'error');
         return;
       }
 
@@ -1979,7 +2011,7 @@ function importData(file) {
         }
       }
       if (validationError) {
-        alert('Ошибка валидации импортируемых данных: ' + validationError);
+        showMessage('Ошибка валидации импортируемых данных: ' + validationError, 'error');
         return;
       }
 
@@ -1989,10 +2021,10 @@ function importData(file) {
           RecipeStore.init();
         }
         DishStore.replaceAll(dishes);
-        alert('✅ Данные успешно импортированы!');
+        showMessage('✅ Данные успешно импортированы!');
       }
     } catch (err) {
-      alert('Ошибка при чтении файла: ' + err.message);
+      showMessage('Ошибка при чтении файла: ' + err.message, 'error');
     }
   };
   reader.readAsText(file);
@@ -2160,8 +2192,8 @@ function saveRecipeForm() {
   const instructions = document.getElementById(CONSTANTS.SELECTORS.recipeInstructions).value.trim();
   const category = document.getElementById(CONSTANTS.SELECTORS.recipeCategory).value;
 
-  if (!name) { alert('Введите название рецепта'); return; }
-  if (!ingredients) { alert('Введите ингредиенты'); return; }
+  if (!name) { showMessage('Введите название рецепта', 'error'); return; }
+  if (!ingredients) { showMessage('Введите ингредиенты', 'error'); return; }
 
   if (id) {
     RecipeStore.update(Number(id), name, ingredients, instructions, category);
@@ -2183,7 +2215,7 @@ function parseRecipeTextFromForm() {
   if (result.ingredients) {
     document.getElementById(CONSTANTS.SELECTORS.recipeIngredients).value = result.ingredients;
   } else {
-    alert('Не удалось распознать ингредиенты. Попробуйте вручную.');
+    showMessage('Не удалось распознать ингредиенты. Попробуйте вручную.', 'error');
   }
 }
 
@@ -2281,7 +2313,7 @@ function renderSavedLists() {
 function loadShoppingList(key) {
   const saved = localStorage.getItem(key);
   if (!saved) {
-    alert('Список не найден');
+    showMessage('Список не найден', 'error');
     return;
   }
   let text = saved;
@@ -2343,11 +2375,11 @@ function generateShoppingList() {
   const fromDate = document.getElementById(CONSTANTS.SELECTORS.shoppingDateFrom).value;
   const toDate = document.getElementById(CONSTANTS.SELECTORS.shoppingDateTo).value;
   if (!fromDate || !toDate) {
-    alert('Выберите обе даты периода');
+    showMessage('Выберите обе даты периода', 'error');
     return;
   }
   if (fromDate > toDate) {
-    alert('Дата "От" не может быть позже даты "До"');
+    showMessage('Дата "От" не может быть позже даты "До"', 'error');
     return;
   }
 
@@ -2374,7 +2406,7 @@ function generateShoppingList() {
   });
 
   if (items.length === 0) {
-    alert('😌 За выбранный период нет блюд с рецептами.');
+    showMessage('😌 За выбранный период нет блюд с рецептами.');
     return;
   }
 
@@ -2424,13 +2456,13 @@ function saveCurrentList() {
   const fromDate = displayDiv.dataset.fromDate;
   const toDate = displayDiv.dataset.toDate;
   if (!fromDate || !toDate) {
-    alert('Нет данных для сохранения. Сначала сгенерируйте список.');
+    showMessage('Нет данных для сохранения. Сначала сгенерируйте список.', 'error');
     return;
   }
 
   const text = document.getElementById(CONSTANTS.SELECTORS.shoppingListResult).value;
   if (!text.trim()) {
-    alert('Список пуст, нечего сохранять.');
+    showMessage('Список пуст, нечего сохранять.', 'error');
     return;
   }
 
@@ -2443,7 +2475,7 @@ function saveCurrentList() {
 
   localStorage.setItem(key, text);
 
-  alert('✅ Список сохранён!');
+  showMessage('✅ Список сохранён!');
   document.getElementById(CONSTANTS.SELECTORS.shoppingListDisplay).style.display = 'none';
   document.getElementById(CONSTANTS.SELECTORS.savedListsContainer).style.display = 'block';
   renderSavedLists();
@@ -2474,7 +2506,7 @@ function backToSavedLists() {
 function exportShoppingListTxt() {
   const text = document.getElementById(CONSTANTS.SELECTORS.shoppingListResult).value;
   if (!text.trim()) {
-    alert('Нет текста для экспорта.');
+    showMessage('Нет текста для экспорта.', 'error');
     return;
   }
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
@@ -2753,7 +2785,7 @@ function initShoppingListHandlers() {
       tomorrow.setDate(tomorrow.getDate() + 1);
       const dateStr = Utils.formatDateLocal(tomorrow);
       DishStore.addDish(random.name, STATUSES.PLANNED, dateStr, random.category, false, '');
-      alert(`✅ Блюдо "${random.name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
+      showMessage(`✅ Блюдо "${random.name}" добавлено в план на завтра (${Utils.formatDate(tomorrow)})`);
     }
   });
   document.getElementById(CONSTANTS.SELECTORS.choiceFromRecipes).addEventListener('click', function() {
@@ -2778,7 +2810,7 @@ function initShoppingListHandlers() {
     const statusSelect = document.getElementById(CONSTANTS.SELECTORS.newDishStatus);
     const categorySelect = document.getElementById(CONSTANTS.SELECTORS.newDishCategory);
     const name = nameInput.value.trim();
-    if (!name) { alert('Введи название блюда'); return; }
+    if (!name) { showMessage('Введи название блюда', 'error'); return; }
     let date = dateInput.value;
     if (!date) {
       const d = new Date();
