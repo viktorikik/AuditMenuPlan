@@ -1882,3 +1882,144 @@ body.dark-theme #savedListsContainer h4 {
     max-width: calc(50% - 10px);
   }
 }
+/* ===== ДОПОЛНИТЕЛЬНЫЕ КЛАССЫ ДЛЯ УДАЛЕНИЯ INLINE-СТИЛЕЙ ===== */
+
+/* Рекомендации: описание */
+.rec-category-desc {
+  margin-bottom: 16px;
+  color: var(--text-secondary);
+}
+
+/* Рекомендации: кнопки категорий (уже есть, но продублируем для надёжности) */
+.category-choice-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--cell-border);
+  background: var(--card-bg);
+  font-size: 16px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  color: var(--text-primary);
+}
+
+.category-choice-btn:hover {
+  background: var(--card-hover-bg);
+  transform: translateX(4px);
+}
+
+/* Кнопка назад в рекомендациях */
+.rec-back-btn {
+  margin-top: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* Заголовок категории в списке рецептов */
+.recipe-category-header {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 6px 10px;
+  background: var(--badge-bg);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  border-left: 4px solid var(--accent-color);
+}
+
+/* Список рецептов */
+.recipe-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Элемент списка рецептов */
+.recipe-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--cell-border);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+  color: var(--text-primary);
+}
+
+.recipe-list-item:hover {
+  background: var(--day-hover);
+}
+
+/* Кликабельное название рецепта */
+.recipe-name-clickable {
+  cursor: pointer;
+  flex: 1;
+}
+
+/* Кнопка редактирования рецепта */
+.recipe-edit-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: var(--transition-fast);
+  padding: 0 6px;
+}
+
+.recipe-edit-btn:hover {
+  color: var(--text-primary);
+}
+
+/* Карточка рецепта (просмотр) */
+.recipe-view-modal {
+  max-width: 500px;
+}
+
+.recipe-ingredients {
+  margin-bottom: 12px;
+}
+
+.recipe-ingredients-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 4px 0;
+}
+
+.recipe-ingredients-list li {
+  padding: 2px 0;
+  border-bottom: 1px solid var(--cell-border);
+}
+
+.recipe-instructions {
+  margin-top: 8px;
+}
+
+.recipe-instructions-text {
+  white-space: pre-wrap;
+  font-family: inherit;
+  margin: 4px 0;
+}
+
+.recipe-card-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Заголовок списка покупок */
+.shopping-list-header {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* Подсказка "Выбрать из меню" */
+.suggest-title {
+  margin-top: 12px;
+}
