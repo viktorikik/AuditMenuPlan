@@ -59,7 +59,7 @@ const PRODUCT_WORDS = [
 ];
 
 // ============================================================
-// ГЛОБАЛЬНЫЙ ОБЪЕКТ КОНСТАНТ (ВЫНЕСЕНЫ ВСЕ СТРОКОВЫЕ ЗНАЧЕНИЯ)
+// ГЛОБАЛЬНЫЙ ОБЪЕКТ КОНСТАНТ
 // ============================================================
 const CONSTANTS = {
   STORAGE_KEYS: {
@@ -885,7 +885,7 @@ const Renderer = (function() {
 
     const suggestTitle = document.createElement('h4');
     suggestTitle.textContent = '📖 Выбрать из меню';
-    suggestTitle.style.marginTop = '12px';
+    suggestTitle.classList.add('suggest-title'); // вместо inline margin
     addSection.appendChild(suggestTitle);
 
     const suggestList = document.createElement('div');
@@ -1261,8 +1261,7 @@ const Renderer = (function() {
 
     const desc = document.createElement('p');
     desc.textContent = 'Выберите категорию блюд, которые хотите приготовить:';
-    desc.style.marginBottom = '16px';
-    desc.style.color = 'var(--text-secondary)';
+    desc.className = 'rec-category-desc'; // вместо inline margin и color
     container.appendChild(desc);
 
     const categories = [
@@ -1276,24 +1275,7 @@ const Renderer = (function() {
       const btn = document.createElement('button');
       btn.className = 'category-choice-btn';
       btn.textContent = cat.label;
-      btn.style.display = 'block';
-      btn.style.width = '100%';
-      btn.style.padding = '12px';
-      btn.style.marginBottom = '8px';
-      btn.style.borderRadius = 'var(--radius-lg)';
-      btn.style.border = '1px solid var(--cell-border)';
-      btn.style.background = 'var(--card-bg)';
-      btn.style.fontSize = '16px';
-      btn.style.cursor = 'pointer';
-      btn.style.transition = 'var(--transition-fast)';
-      btn.addEventListener('mouseenter', () => {
-        btn.style.background = 'var(--card-hover-bg)';
-        btn.style.transform = 'translateX(4px)';
-      });
-      btn.addEventListener('mouseleave', () => {
-        btn.style.background = 'var(--card-bg)';
-        btn.style.transform = 'none';
-      });
+      // Никаких inline-стилей, hover-эффект уже в CSS
       btn.addEventListener('click', () => {
         showRecommendationsForCategory(cat.key);
       });
@@ -1303,12 +1285,6 @@ const Renderer = (function() {
     const backBtn = document.createElement('button');
     backBtn.className = 'rec-back-btn';
     backBtn.textContent = '← Назад';
-    backBtn.style.marginTop = '12px';
-    backBtn.style.background = 'transparent';
-    backBtn.style.border = 'none';
-    backBtn.style.color = 'var(--text-muted)';
-    backBtn.style.cursor = 'pointer';
-    backBtn.style.fontSize = '14px';
     backBtn.addEventListener('click', () => {
       recOverlay.classList.remove('active');
     });
@@ -1409,12 +1385,6 @@ const Renderer = (function() {
     const backBtn = document.createElement('button');
     backBtn.className = 'rec-back-btn';
     backBtn.textContent = '← Назад к категориям';
-    backBtn.style.marginTop = '16px';
-    backBtn.style.background = 'transparent';
-    backBtn.style.border = 'none';
-    backBtn.style.color = 'var(--text-muted)';
-    backBtn.style.cursor = 'pointer';
-    backBtn.style.fontSize = '14px';
     backBtn.addEventListener('click', () => {
       showCategorySelection();
     });
@@ -1520,10 +1490,10 @@ const Renderer = (function() {
   function showRecipeCard(recipe) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay active';
-    overlay.style.display = 'flex';
+    overlay.style.display = 'flex'; // это допустимо, но лучше класс .active уже задаёт display:flex
     const modal = document.createElement('div');
     modal.className = 'modal recipe-view-modal';
-    modal.style.maxWidth = '500px';
+    modal.classList.add('recipe-view-modal'); // дополнительный класс для max-width
 
     // Заголовок
     const header = document.createElement('div');
@@ -1541,18 +1511,14 @@ const Renderer = (function() {
 
     // Ингредиенты
     const ingredientsDiv = document.createElement('div');
-    ingredientsDiv.style.marginBottom = '12px';
+    ingredientsDiv.classList.add('recipe-ingredients'); // класс для стилей
     const ingredientsLabel = document.createElement('strong');
     ingredientsLabel.textContent = 'Ингредиенты:';
     ingredientsDiv.appendChild(ingredientsLabel);
     const ingredientsList = document.createElement('ul');
-    ingredientsList.style.listStyle = 'none';
-    ingredientsList.style.paddingLeft = '0';
-    ingredientsList.style.margin = '4px 0';
+    ingredientsList.className = 'recipe-ingredients-list';
     recipe.ingredients.forEach(ing => {
       const li = document.createElement('li');
-      li.style.padding = '2px 0';
-      li.style.borderBottom = '1px solid var(--cell-border)';
       li.textContent = ing;
       ingredientsList.appendChild(li);
     });
@@ -1562,13 +1528,12 @@ const Renderer = (function() {
     // Инструкция (если есть)
     if (recipe.instructions) {
       const instrDiv = document.createElement('div');
+      instrDiv.className = 'recipe-instructions';
       const instrLabel = document.createElement('strong');
       instrLabel.textContent = 'Инструкция:';
       instrDiv.appendChild(instrLabel);
       const pre = document.createElement('pre');
-      pre.style.whiteSpace = 'pre-wrap';
-      pre.style.fontFamily = 'inherit';
-      pre.style.margin = '4px 0';
+      pre.className = 'recipe-instructions-text';
       pre.textContent = recipe.instructions;
       instrDiv.appendChild(pre);
       modal.appendChild(instrDiv);
@@ -1576,18 +1541,14 @@ const Renderer = (function() {
 
     // Кнопки
     const buttonsDiv = document.createElement('div');
-    buttonsDiv.style.display = 'flex';
-    buttonsDiv.style.gap = '8px';
-    buttonsDiv.style.marginTop = '12px';
+    buttonsDiv.className = 'recipe-card-buttons';
     const addButton = document.createElement('button');
     addButton.className = 'btn-primary';
     addButton.id = 'addRecipeToCalendar';
-    addButton.style.flex = '1';
     addButton.textContent = 'Добавить в календарь';
     const closeButton2 = document.createElement('button');
     closeButton2.className = 'btn-secondary';
     closeButton2.id = 'recipeCardCloseBtn';
-    closeButton2.style.flex = '1';
     closeButton2.textContent = 'Закрыть';
     buttonsDiv.appendChild(addButton);
     buttonsDiv.appendChild(closeButton2);
@@ -1888,44 +1849,22 @@ function renderRecipesList() {
   sortedCategories.forEach(cat => {
     const section = document.createElement('div');
     section.className = 'recipe-category-section';
-    section.style.marginBottom = '16px';
 
     const header = document.createElement('h4');
-    header.style.cssText = `
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--text-primary);
-      padding: 6px 10px;
-      background: var(--badge-bg);
-      border-radius: var(--radius-sm);
-      margin-bottom: 8px;
-      border-left: 4px solid var(--accent-color);
-    `;
+    header.className = 'recipe-category-header';
     header.textContent = CATEGORY_LABELS[cat] || cat;
     section.appendChild(header);
 
     const ul = document.createElement('ul');
-    ul.style.listStyle = 'none';
-    ul.style.padding = '0';
-    ul.style.margin = '0';
+    ul.className = 'recipe-list';
 
     grouped[cat].forEach(recipe => {
       const li = document.createElement('li');
-      li.style.cssText = `
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 14px;
-        border-bottom: 1px solid var(--cell-border);
-        border-radius: var(--radius-sm);
-        transition: var(--transition-fast);
-        color: var(--text-primary);
-      `;
+      li.className = 'recipe-list-item';
       
       const nameSpan = document.createElement('span');
       nameSpan.textContent = recipe.name;
-      nameSpan.style.cursor = 'pointer';
-      nameSpan.style.flex = '1';
+      nameSpan.className = 'recipe-name-clickable';
       nameSpan.addEventListener('click', () => {
         Renderer.showRecipeCard(recipe);
       });
@@ -1933,28 +1872,13 @@ function renderRecipesList() {
 
       const editBtn = document.createElement('button');
       editBtn.textContent = '✎';
-      editBtn.style.cssText = `
-        background: none;
-        border: none;
-        font-size: 16px;
-        cursor: pointer;
-        color: var(--text-muted);
-        transition: var(--transition-fast);
-        padding: 0 6px;
-      `;
+      editBtn.className = 'recipe-edit-btn';
       editBtn.title = 'Редактировать рецепт';
       editBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         openRecipeForm(recipe.id);
       });
       li.appendChild(editBtn);
-
-      li.addEventListener('mouseenter', () => {
-        li.style.background = 'var(--day-hover)';
-      });
-      li.addEventListener('mouseleave', () => {
-        li.style.background = 'transparent';
-      });
 
       ul.appendChild(li);
     });
@@ -2166,9 +2090,8 @@ function loadShoppingList(key) {
   const oldHeader = container.querySelector('.list-header');
   if (oldHeader) oldHeader.remove();
   const newHeader = document.createElement('div');
-  newHeader.className = 'list-header';
+  newHeader.className = 'list-header shopping-list-header';
   newHeader.textContent = `📋 Список на ${periodLabel}`;
-  newHeader.style.cssText = 'margin-bottom:8px;font-size:14px;color:var(--text-secondary);';
   container.insertBefore(newHeader, textarea);
 
   displayDiv.dataset.currentKey = key;
@@ -2242,9 +2165,8 @@ function generateShoppingList() {
   const oldHeader = container.querySelector('.list-header');
   if (oldHeader) oldHeader.remove();
   const newHeader = document.createElement('div');
-  newHeader.className = 'list-header';
+  newHeader.className = 'list-header shopping-list-header';
   newHeader.textContent = `📋 Предварительный список за ${periodLabel}`;
-  newHeader.style.cssText = 'margin-bottom:8px;font-size:14px;color:var(--text-secondary);';
   container.insertBefore(newHeader, resultTextarea);
 
   resultTextarea.value = text;
